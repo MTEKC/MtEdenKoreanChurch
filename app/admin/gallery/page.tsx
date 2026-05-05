@@ -1,12 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import { db, storage } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AuthGuard from '@/components/AuthGuard'; // Protects this page
 import { ImagePlus, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+
+interface CloudinaryUploadResult {
+  publicId: string;
+  secureUrl: string;
+}
+
+async function uploadImageToCloudinary(file: File, token: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('/api/cloudinary/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error || 'Cloudinary upload failed.');
+  }
+
+  return response.json() as Promise<CloudinaryUploadResult>;
+}
 
 export default function AdminGalleryUpload() {
   const [title, setTitle] = useState('');
@@ -38,21 +62,20 @@ export default function AdminGalleryUpload() {
     setUploadedCount(0);
 
     try {
-      const timestamp = Date.now();
-      const uploadedImages: { path: string; url: string }[] = [];
+      const token = await auth.currentUser?.getIdToken();
+
+      if (!token) {
+        throw new Error('Please log in again before uploading images.');
+      }
+
+      const uploadedImages: { publicId: string; url: string }[] = [];
 
       for (const [index, file] of imageFiles.entries()) {
-        // Create a unique storage path for every selected file.
-        const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const storagePath = `gallery/${timestamp}-${index}-${safeFileName}`;
-        const storageReference = ref(storage, storagePath);
-
-        await uploadBytes(storageReference, file);
-        const publicImageUrl = await getDownloadURL(storageReference);
+        const uploadedImage = await uploadImageToCloudinary(file, token);
 
         uploadedImages.push({
-          path: storagePath,
-          url: publicImageUrl,
+          publicId: uploadedImage.publicId,
+          url: uploadedImage.secureUrl,
         });
         setUploadedCount(index + 1);
       }
@@ -65,7 +88,8 @@ export default function AdminGalleryUpload() {
         imageUrl: uploadedImages[0].url,
         coverImageUrl: uploadedImages[0].url,
         imageUrls: uploadedImages.map((image) => image.url),
-        imagePaths: uploadedImages.map((image) => image.path),
+        imagePublicIds: uploadedImages.map((image) => image.publicId),
+        imageProvider: 'cloudinary',
         imageCount: uploadedImages.length,
         createdAt: serverTimestamp(),
       });

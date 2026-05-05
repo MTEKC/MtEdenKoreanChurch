@@ -6,8 +6,10 @@ export interface GalleryItem {
   imageUrl?: string;
   imageUrls?: string[];
   imagePaths?: string[];
+  imagePublicIds?: string[];
   imageCount?: number;
   coverImageUrl?: string;
+  imageProvider?: 'cloudinary' | 'firebase';
 }
 
 export function getGalleryImageUrls(item: GalleryItem) {
@@ -30,10 +32,10 @@ export function getGalleryImageCount(item: GalleryItem) {
   return getGalleryImageUrls(item).length;
 }
 
-export function getGalleryStorageRefs(item: GalleryItem) {
-  if (Array.isArray(item.imagePaths) && item.imagePaths.length > 0) {
-    return item.imagePaths;
+export function getGalleryCloudinaryPublicIds(item: GalleryItem) {
+  if (Array.isArray(item.imagePublicIds) && item.imagePublicIds.length > 0) {
+    return item.imagePublicIds;
   }
 
-  return getGalleryImageUrls(item);
+  return [];
 }

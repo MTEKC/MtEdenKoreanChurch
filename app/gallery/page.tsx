@@ -40,6 +40,8 @@ export default function GalleryPage() {
                 coverImageUrl: doc.data().coverImageUrl,
                 imageUrls: doc.data().imageUrls,
                 imagePaths: doc.data().imagePaths,
+                imagePublicIds: doc.data().imagePublicIds,
+                imageProvider: doc.data().imageProvider,
                 imageCount: doc.data().imageCount,
             }));
 

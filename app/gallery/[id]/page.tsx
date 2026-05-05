@@ -47,6 +47,8 @@ export default function GalleryDetailPage() {
           coverImageUrl: data.coverImageUrl,
           imageUrls: data.imageUrls,
           imagePaths: data.imagePaths,
+          imagePublicIds: data.imagePublicIds,
+          imageProvider: data.imageProvider,
           imageCount: data.imageCount,
         });
         setLoading(false);

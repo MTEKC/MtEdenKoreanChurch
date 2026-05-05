@@ -87,14 +87,13 @@
 
 import { useState, useEffect } from 'react';
 import AuthGuard from '@/components/AuthGuard';
-import { auth, db, storage } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Trash2, ExternalLink } from 'lucide-react';
-import { GalleryItem, getGalleryCoverImage, getGalleryImageCount, getGalleryStorageRefs } from '@/lib/gallery';
+import { GalleryItem, getGalleryCloudinaryPublicIds, getGalleryCoverImage, getGalleryImageCount } from '@/lib/gallery';
 
 interface AdminListItem {
   id: string;
@@ -161,18 +160,37 @@ export default function AdminDashboard() {
   const deleteGalleryDoc = async (item: GalleryItem) => {
     if (confirm("Are you sure you want to permanently delete this gallery event?")) {
       try {
-        const storageRefs = getGalleryStorageRefs(item);
-        const deleteResults = await Promise.allSettled(
-          storageRefs.map((storageRef) => deleteObject(ref(storage, storageRef)))
-        );
+        const publicIds = getGalleryCloudinaryPublicIds(item);
+
+        if (publicIds.length > 0) {
+          const token = await auth.currentUser?.getIdToken();
+
+          if (!token) {
+            throw new Error('Please log in again before deleting gallery images.');
+          }
+
+          const response = await fetch('/api/cloudinary/delete', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ publicIds }),
+          });
+
+          const result = (await response.json().catch(() => null)) as { failed?: unknown[]; error?: string } | null;
+
+          if (!response.ok) {
+            throw new Error(result?.error || 'Cloudinary delete failed.');
+          }
+
+          if (Array.isArray(result?.failed) && result.failed.length > 0) {
+            console.error("Some Cloudinary images could not be deleted:", result.failed);
+            alert("Gallery event deleted, but some image files may already have been removed.");
+          }
+        }
 
         await deleteDoc(doc(db, 'gallery', item.id));
-
-        const failedDeletes = deleteResults.filter((result) => result.status === 'rejected');
-        if (failedDeletes.length > 0) {
-          console.error("Some gallery images could not be deleted:", failedDeletes);
-          alert("Gallery event deleted, but some image files may already have been removed.");
-        }
       } catch (error) {
         console.error("Error deleting gallery event:", error);
         alert("Error deleting gallery event. Please try again.");
