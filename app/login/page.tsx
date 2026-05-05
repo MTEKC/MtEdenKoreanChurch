@@ -18,7 +18,7 @@ export default function LoginPage() {
             await signInWithEmailAndPassword(auth, email, password);
             // Success! Send them to the Admin Dashboard
             router.push('/admin');
-        } catch (err) {
+        } catch {
             setError('Incorrect email or password.');
         }
     };

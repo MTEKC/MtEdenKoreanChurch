@@ -87,7 +87,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, type Timestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { Megaphone, Calendar, Pin, Trash2 } from 'lucide-react';
 
@@ -99,7 +99,7 @@ interface Announcement {
   category: string;
   content: string;
   isPinned: boolean;
-  createdAt: any;
+  createdAt?: Timestamp;
 }
 
 export default function AnnouncementsPage() {

@@ -117,12 +117,19 @@
 
 import { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
-import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, orderBy, serverTimestamp, type Timestamp } from 'firebase/firestore';
 import { Trash2, MessageSquare } from 'lucide-react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
+interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  createdAt?: Timestamp;
+}
+
 export default function CommentSection({ postId }: { postId: string }) {
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [user] = useAuthState(auth); // Admin Check
@@ -130,7 +137,12 @@ export default function CommentSection({ postId }: { postId: string }) {
   useEffect(() => {
     const q = query(collection(db, "comments"), where("postId", "==", postId), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setComments(snapshot.docs.map(doc => ({
+        id: doc.id,
+        author: doc.data().author || 'Anonymous',
+        text: doc.data().text || '',
+        createdAt: doc.data().createdAt,
+      })));
     });
     return () => unsubscribe();
   }, [postId]);

@@ -4,18 +4,23 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { ImageIcon } from 'lucide-react';
-
-// Define what our image data looks like
-interface GalleryItem {
-    id: string;
-    title: string;
-    imageUrl: string;
-}
+import { Calendar, ImageIcon, Images } from 'lucide-react';
+import Link from 'next/link';
+import { GalleryItem, getGalleryCoverImage, getGalleryImageCount } from '@/lib/gallery';
 
 export default function GalleryPage() {
     const [images, setImages] = useState<GalleryItem[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const formatDate = (date?: string) => {
+        if (!date) return '';
+
+        return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        });
+    };
 
     useEffect(() => {
         // 1. Point to the 'gallery' drawer in our Firestore database
@@ -28,8 +33,14 @@ export default function GalleryPage() {
         const unsubscribe = onSnapshot(galleryQuery, (snapshot) => {
             const fetchedImages = snapshot.docs.map((doc) => ({
                 id: doc.id,
-                title: doc.data().title,
+                title: doc.data().title || 'Untitled Event',
+                description: doc.data().description || '',
+                date: doc.data().date || '',
                 imageUrl: doc.data().imageUrl,
+                coverImageUrl: doc.data().coverImageUrl,
+                imageUrls: doc.data().imageUrls,
+                imagePaths: doc.data().imagePaths,
+                imageCount: doc.data().imageCount,
             }));
 
             setImages(fetchedImages);
@@ -59,23 +70,50 @@ export default function GalleryPage() {
                         <p className="text-gray-400 mt-2">Check back soon for updates from our events!</p>
                     </div>
                 ) : (
-                    // The Image Grid
+                    // The Gallery Event Grid
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {images.map((item) => (
-                            <div key={item.id} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative group shadow-sm border border-gray-200">
-                                {/* The Real Image from Firebase Storage */}
-                                <img
-                                    src={item.imageUrl}
-                                    alt={item.title}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                />
-                                {/* Hover Overlay showing the Title */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                                    <p className="text-white font-medium text-lg drop-shadow-md">
-                                        {item.title}
-                                    </p>
+                            <Link
+                                key={item.id}
+                                href={`/gallery/${item.id}`}
+                                className="group overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-md"
+                            >
+                                <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                                    {getGalleryCoverImage(item) ? (
+                                        <img
+                                            src={getGalleryCoverImage(item)}
+                                            alt={item.title}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center">
+                                            <ImageIcon className="w-12 h-12 text-gray-300" />
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                                <div className="p-5">
+                                    <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                                        {item.date && (
+                                            <span className="inline-flex items-center gap-1">
+                                                <Calendar className="w-4 h-4" />
+                                                {formatDate(item.date)}
+                                            </span>
+                                        )}
+                                        <span className="inline-flex items-center gap-1">
+                                            <Images className="w-4 h-4" />
+                                            {getGalleryImageCount(item)} {getGalleryImageCount(item) === 1 ? 'photo' : 'photos'}
+                                        </span>
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition">
+                                        {item.title}
+                                    </h2>
+                                    {item.description && (
+                                        <p className="mt-2 text-sm leading-6 text-gray-600">
+                                            {item.description}
+                                        </p>
+                                    )}
+                                </div>
+                            </Link>
                         ))}
                     </div>
                 )}

@@ -96,7 +96,7 @@ import Navbar from '@/components/Navbar';
 import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { PlayCircle, User, Calendar, Trash2 } from 'lucide-react';
+import { User, Calendar, Trash2 } from 'lucide-react';
 
 interface Sermon {
   id: string;

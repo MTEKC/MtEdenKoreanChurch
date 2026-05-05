@@ -94,36 +94,51 @@ import { ref, deleteObject } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Trash2, ExternalLink } from 'lucide-react';
+import { GalleryItem, getGalleryCoverImage, getGalleryImageCount, getGalleryStorageRefs } from '@/lib/gallery';
+
+interface AdminListItem {
+  id: string;
+  title: string;
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
 
   // State to hold all our database items
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [sermons, setSermons] = useState<any[]>([]);
-  const [verses, setVerses] = useState<any[]>([]);
-  const [gallery, setGallery] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<AdminListItem[]>([]);
+  const [sermons, setSermons] = useState<AdminListItem[]>([]);
+  const [verses, setVerses] = useState<AdminListItem[]>([]);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
 
   // Fetch all data when the dashboard loads
   useEffect(() => {
     // 1. Fetch Announcements
     const unsubAnnouncements = onSnapshot(query(collection(db, 'announcements'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setAnnouncements(snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title || 'Untitled Announcement',
+      })));
     });
 
     // 2. Fetch Sermons
     const unsubSermons = onSnapshot(query(collection(db, 'sermons'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setSermons(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setSermons(snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title || 'Untitled Sermon',
+      })));
     });
 
     // 3. Fetch Weekly Word (Verses)
     const unsubVerses = onSnapshot(query(collection(db, 'verses'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setVerses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setVerses(snapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title || 'Untitled Weekly Word',
+      })));
     });
 
     // 4. Fetch Gallery
     const unsubGallery = onSnapshot(query(collection(db, 'gallery'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setGallery(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setGallery(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryItem)));
     });
 
     // Cleanup listeners when leaving page
@@ -143,14 +158,24 @@ export default function AdminDashboard() {
     }
   };
 
-  const deleteImageDoc = async (id: string, imageUrl: string) => {
-    if (confirm("Are you sure you want to permanently delete this photo?")) {
+  const deleteGalleryDoc = async (item: GalleryItem) => {
+    if (confirm("Are you sure you want to permanently delete this gallery event?")) {
       try {
-        await deleteDoc(doc(db, 'gallery', id)); // Delete text from database
-        await deleteObject(ref(storage, imageUrl)); // Delete file from storage
+        const storageRefs = getGalleryStorageRefs(item);
+        const deleteResults = await Promise.allSettled(
+          storageRefs.map((storageRef) => deleteObject(ref(storage, storageRef)))
+        );
+
+        await deleteDoc(doc(db, 'gallery', item.id));
+
+        const failedDeletes = deleteResults.filter((result) => result.status === 'rejected');
+        if (failedDeletes.length > 0) {
+          console.error("Some gallery images could not be deleted:", failedDeletes);
+          alert("Gallery event deleted, but some image files may already have been removed.");
+        }
       } catch (error) {
-        console.error("Error deleting image:", error);
-        alert("Error deleting image. It may have already been removed.");
+        console.error("Error deleting gallery event:", error);
+        alert("Error deleting gallery event. Please try again.");
       }
     }
   };
@@ -195,7 +220,7 @@ export default function AdminDashboard() {
           </Link>
           <Link href="/admin/gallery" className="bg-white p-6 rounded-2xl border hover:border-blue-500 hover:shadow-md transition group">
             <ImageIcon className="w-8 h-8 text-blue-500 mb-3 group-hover:scale-110 transition" />
-            <h3 className="font-bold text-gray-800">Gallery Photo</h3>
+            <h3 className="font-bold text-gray-800">Gallery Event</h3>
           </Link>
           <Link href="/admin/sermons" className="bg-white p-6 rounded-2xl border hover:border-purple-500 hover:shadow-md transition group">
             <Video className="w-8 h-8 text-purple-500 mb-3 group-hover:scale-110 transition" />
@@ -256,18 +281,32 @@ export default function AdminDashboard() {
 
           {/* Gallery List */}
           <div className="bg-white rounded-2xl border p-4 shadow-sm h-96 overflow-y-auto">
-            <h3 className="font-bold text-blue-600 mb-4 sticky top-0 bg-white pb-2 border-b flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Gallery Photos</h3>
+            <h3 className="font-bold text-blue-600 mb-4 sticky top-0 bg-white pb-2 border-b flex items-center gap-2"><ImageIcon className="w-4 h-4"/> Gallery Events</h3>
             <ul className="space-y-3">
-              {gallery.map(item => (
-                <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <img src={item.imageUrl} alt={item.title} className="w-10 h-10 object-cover rounded" />
-                    <span className="text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
-                  </div>
-                  <button onClick={() => deleteImageDoc(item.id, item.imageUrl)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
-                </li>
-              ))}
-              {gallery.length === 0 && <p className="text-sm text-gray-400">No photos found.</p>}
+              {gallery.map(item => {
+                const coverImage = getGalleryCoverImage(item);
+                const imageCount = getGalleryImageCount(item);
+
+                return (
+                  <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {coverImage ? (
+                        <img src={coverImage} alt={item.title} className="w-10 h-10 object-cover rounded" />
+                      ) : (
+                        <div className="flex w-10 h-10 shrink-0 items-center justify-center rounded bg-gray-100">
+                          <ImageIcon className="w-4 h-4 text-gray-300" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="block text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
+                        <span className="block text-xs text-gray-400">{imageCount} {imageCount === 1 ? 'photo' : 'photos'}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => deleteGalleryDoc(item)} className="text-gray-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>
+                  </li>
+                );
+              })}
+              {gallery.length === 0 && <p className="text-sm text-gray-400">No gallery events found.</p>}
             </ul>
           </div>
 

@@ -67,7 +67,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { db, auth } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, type Timestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { BookOpen, Calendar, Trash2 } from 'lucide-react';
 import CommentSection from '@/components/CommentSection'; // Import our comment component
@@ -77,7 +77,7 @@ interface VerseData {
   title: string;
   scripture: string;
   message: string;
-  createdAt: any;
+  createdAt?: Timestamp;
 }
 
 export default function VersesPage() {
