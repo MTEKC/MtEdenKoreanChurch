@@ -6,17 +6,59 @@ import { useState } from 'react';
 
 export default function ContactPage() {
     const [loading, setLoading] = useState(false);
+    const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [form, setForm] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        message: '',
+        company: '',
+    });
+
+    const updateField = (field: keyof typeof form) => (
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        setForm((currentForm) => ({
+            ...currentForm,
+            [field]: event.target.value,
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setStatus(null);
 
-        // Simulate sending email
-        setTimeout(() => {
-            alert("Thank you! Your message has been sent.");
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(form),
+            });
+            const result = await response.json().catch(() => null) as { error?: string } | null;
+
+            if (!response.ok) {
+                throw new Error(result?.error ?? 'Failed to send message.');
+            }
+
+            setStatus({ type: 'success', message: 'Thank you! Your message has been sent.' });
+            setForm({
+                firstName: '',
+                lastName: '',
+                email: '',
+                message: '',
+                company: '',
+            });
+        } catch (error) {
+            setStatus({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Failed to send message.',
+            });
+        } finally {
             setLoading(false);
-            // Reset form logic here if needed
-        }, 1000);
+        }
     };
 
     return (
@@ -100,20 +142,36 @@ export default function ContactPage() {
                         <h2 className="text-2xl font-bold text-gray-800 mb-6">Send a Message</h2>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            <input
+                                type="text"
+                                name="company"
+                                value={form.company}
+                                onChange={updateField('company')}
+                                className="hidden"
+                                tabIndex={-1}
+                                autoComplete="off"
+                            />
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                                     <input
+                                        id="firstName"
                                         type="text"
+                                        value={form.firstName}
+                                        onChange={updateField('firstName')}
                                         required
                                         className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                         placeholder="John"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                                     <input
+                                        id="lastName"
                                         type="text"
+                                        value={form.lastName}
+                                        onChange={updateField('lastName')}
                                         required
                                         className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                         placeholder="Doe"
@@ -122,9 +180,12 @@ export default function ContactPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                                 <input
+                                    id="email"
                                     type="email"
+                                    value={form.email}
+                                    onChange={updateField('email')}
                                     required
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                     placeholder="john@example.com"
@@ -132,19 +193,31 @@ export default function ContactPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
                                 <textarea
+                                    id="message"
                                     rows={4}
+                                    value={form.message}
+                                    onChange={updateField('message')}
                                     required
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                     placeholder="How can we help you?"
                                 ></textarea>
                             </div>
 
+                            {status && (
+                                <p
+                                    role="status"
+                                    className={`text-sm ${status.type === 'success' ? 'text-green-700' : 'text-red-600'}`}
+                                >
+                                    {status.message}
+                                </p>
+                            )}
+
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 transition flex items-center justify-center gap-2"
                             >
                                 {loading ? 'Sending...' : (
                                     <>
