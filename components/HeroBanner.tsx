@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import church3Image from '@/app/image/church3.jpg';
 import church1Image from '@/app/image/church1.jpg';
-import church2Image from '@/app/image/church_4.jpg';
-import church4Image from '@/app/image/church_5.jpg';
 import churchegg from '@/app/image/church_egg.jpg';
-import church5Image from '@/app/image/church_6.jpg';
+import heroOrganImage from '@/app/image/hero_empty_sanctuary_organ.png';
+import heroWindowsImage from '@/app/image/hero_empty_sanctuary_windows.png';
+import heroEasterImage from '@/app/image/hero_easter_altar.png';
 
 const slides = [
     // {
@@ -18,14 +18,14 @@ const slides = [
     //     subtext : 'Mount Eden Korean Methodist Church of New Zealand.'
     // },
     {
-        image: church2Image.src,
+        image: heroOrganImage.src,
         heading: '마운트이든 한인교회',
         // subtext: 'A place of love, hope, and new beginnings.',
         subtext : 'Mount Eden Korean Methodist Church of New Zealand.'
     },
     {
         image:
-            church4Image.src,
+            heroWindowsImage.src,
         heading: 'Worship Together',
         subtext: 'Join us every Sunday for inspiring praise and worship.',
     },
@@ -49,7 +49,7 @@ const slides = [
     },
     {
         image:
-            church5Image.src,
+            heroEasterImage.src,
         heading: 'Easter Sunday',
         subtext: '부활절 연합예배',
     },

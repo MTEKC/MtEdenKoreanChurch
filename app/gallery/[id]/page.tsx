@@ -71,7 +71,7 @@ export default function GalleryDetailPage() {
       <div className="max-w-6xl mx-auto px-4 py-12">
         <Link href="/gallery" className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-700">
           <ArrowLeft className="w-4 h-4" />
-          Back to Gallery
+          갤러리로 돌아가기
         </Link>
 
         {loading ? (
@@ -81,8 +81,8 @@ export default function GalleryDetailPage() {
         ) : !item ? (
           <div className="text-center py-20 bg-gray-50 rounded-lg border border-gray-100">
             <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-700">Gallery event not found</h1>
-            <p className="text-gray-400 mt-2">This gallery item may have been removed.</p>
+            <h1 className="text-2xl font-bold text-gray-700">갤러리 행사를 찾을 수 없습니다.</h1>
+            <p className="text-gray-400 mt-2">삭제되었거나 주소가 변경되었을 수 있습니다.</p>
           </div>
         ) : (
           <>
@@ -96,7 +96,7 @@ export default function GalleryDetailPage() {
                 )}
                 <span className="inline-flex items-center gap-2">
                   <Images className="w-4 h-4" />
-                  {getGalleryImageCount(item)} {getGalleryImageCount(item) === 1 ? 'photo' : 'photos'}
+                  사진 {getGalleryImageCount(item)}장
                 </span>
               </div>
               <h1 className="text-4xl font-bold tracking-tight text-gray-900">{item.title}</h1>
@@ -110,12 +110,12 @@ export default function GalleryDetailPage() {
             {imageUrls.length === 0 ? (
               <div className="text-center py-20 bg-gray-50 rounded-lg border border-gray-100">
                 <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-gray-600">No photos available</h2>
+                <h2 className="text-xl font-semibold text-gray-600">등록된 사진이 없습니다.</h2>
               </div>
             ) : (
-              <section aria-label="Gallery event photos">
+              <section aria-label="갤러리 행사 사진">
                 <div className="mb-5 flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">Photos</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">사진</h2>
                   <span className="text-sm text-gray-500">
                     {imageUrls.length} {imageUrls.length === 1 ? 'image' : 'images'}
                   </span>

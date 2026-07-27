@@ -142,7 +142,7 @@ import { MapPin, Clock, Heart } from 'lucide-react';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gray-50 pt-20">
+    <main className="min-h-screen overflow-x-hidden bg-gray-50 pt-20">
       <Navbar />
 
       {/* 1. Hero Banner Section - Auto-sliding carousel */}

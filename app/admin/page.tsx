@@ -92,12 +92,18 @@ import { signOut } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Trash2, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { GalleryItem, getGalleryCloudinaryPublicIds, getGalleryCoverImage, getGalleryImageCount } from '@/lib/gallery';
 
 interface AdminListItem {
   id: string;
   title: string;
+}
+
+interface ResourceItem extends AdminListItem {
+  category?: string;
+  fileName?: string;
+  filePublicId?: string;
 }
 
 export default function AdminDashboard() {
@@ -108,6 +114,7 @@ export default function AdminDashboard() {
   const [sermons, setSermons] = useState<AdminListItem[]>([]);
   const [verses, setVerses] = useState<AdminListItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [resources, setResources] = useState<ResourceItem[]>([]);
 
   // Fetch all data when the dashboard loads
   useEffect(() => {
@@ -140,12 +147,17 @@ export default function AdminDashboard() {
       setGallery(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryItem)));
     });
 
+    const unsubResources = onSnapshot(query(collection(db, 'resources'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setResources(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResourceItem)));
+    });
+
     // Cleanup listeners when leaving page
     return () => {
       unsubAnnouncements();
       unsubSermons();
       unsubVerses();
       unsubGallery();
+      unsubResources();
     };
   }, []);
 
@@ -198,6 +210,38 @@ export default function AdminDashboard() {
     }
   };
 
+  const deleteResourceDoc = async (item: ResourceItem) => {
+    if (confirm("Are you sure you want to permanently delete this resource?")) {
+      try {
+        if (item.filePublicId) {
+          const token = await auth.currentUser?.getIdToken();
+          if (!token) {
+            throw new Error('Please log in again before deleting the PDF.');
+          }
+
+          const response = await fetch('/api/cloudinary/documents/delete', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ publicId: item.filePublicId }),
+          });
+
+          if (!response.ok) {
+            const result = (await response.json().catch(() => null)) as { error?: string } | null;
+            throw new Error(result?.error || 'PDF delete failed.');
+          }
+        }
+
+        await deleteDoc(doc(db, 'resources', item.id));
+      } catch (error) {
+        console.error('Error deleting resource:', error);
+        alert('Error deleting resource. Please try again.');
+      }
+    }
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/');
@@ -231,7 +275,7 @@ export default function AdminDashboard() {
 
         {/* --- SECTION 1: ADD NEW CONTENT --- */}
         <h2 className="text-xl font-bold text-gray-800 mb-4">Add New Content</h2>
-        <div className="grid md:grid-cols-4 gap-4 mb-12">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 mb-12">
           <Link href="/admin/announcements" className="bg-white p-6 rounded-2xl border hover:border-orange-500 hover:shadow-md transition group">
             <Megaphone className="w-8 h-8 text-orange-500 mb-3 group-hover:scale-110 transition" />
             <h3 className="font-bold text-gray-800">Announcement</h3>
@@ -247,6 +291,10 @@ export default function AdminDashboard() {
           <Link href="/admin/verses" className="bg-white p-6 rounded-2xl border hover:border-green-500 hover:shadow-md transition group">
             <BookOpen className="w-8 h-8 text-green-500 mb-3 group-hover:scale-110 transition" />
             <h3 className="font-bold text-gray-800">Weekly Word</h3>
+          </Link>
+          <Link href="/admin/resources" className="bg-white p-6 rounded-2xl border hover:border-sky-500 hover:shadow-md transition group">
+            <FileText className="w-8 h-8 text-sky-600 mb-3 group-hover:scale-110 transition" />
+            <h3 className="font-bold text-gray-800">자료실</h3>
           </Link>
         </div>
 
@@ -325,6 +373,22 @@ export default function AdminDashboard() {
                 );
               })}
               {gallery.length === 0 && <p className="text-sm text-gray-400">No gallery events found.</p>}
+            </ul>
+          </div>
+
+          <div className="bg-white rounded-2xl border p-4 shadow-sm h-96 overflow-y-auto">
+            <h3 className="font-bold text-sky-700 mb-4 sticky top-0 bg-white pb-2 border-b flex items-center gap-2"><FileText className="w-4 h-4"/> 자료실</h3>
+            <ul className="space-y-3">
+              {resources.map(item => (
+                <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <div className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
+                    <span className="block text-xs text-gray-400 truncate">{item.category || '자료'}{item.fileName ? ` · ${item.fileName}` : ''}</span>
+                  </div>
+                  <button onClick={() => deleteResourceDoc(item)} className="text-gray-400 hover:text-red-500 p-1" title="자료 삭제"><Trash2 className="w-4 h-4" /></button>
+                </li>
+              ))}
+              {resources.length === 0 && <p className="text-sm text-gray-400">등록된 자료가 없습니다.</p>}
             </ul>
           </div>
 

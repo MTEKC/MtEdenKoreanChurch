@@ -102,6 +102,21 @@ interface Announcement {
   createdAt?: Timestamp;
 }
 
+const announcementCategories = [
+  { value: 'All', label: '전체' },
+  { value: 'Monday Class', label: '월요 모임' },
+  { value: 'Sunday Class', label: '주일 모임' },
+  { value: 'Mission', label: '선교' },
+  { value: 'General News', label: '교회 소식' },
+];
+
+const categoryLabels: Record<string, string> = {
+  'Monday Class': '월요 모임',
+  'Sunday Class': '주일 모임',
+  Mission: '선교',
+  'General News': '교회 소식',
+};
+
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,25 +173,25 @@ export default function AnnouncementsPage() {
             <Megaphone className="w-8 h-8 text-orange-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
-            <p className="text-gray-600">Stay updated with church news</p>
+            <h1 className="text-3xl font-bold text-gray-900">소식·행사</h1>
+            <p className="text-gray-600">교회의 새로운 소식과 행사를 확인하세요.</p>
           </div>
         </header>
 
         {/* Category Tabs */}
         {!loading && (
           <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-            {['All', 'Monday Class', 'Sunday Class', 'Mission', 'General News'].map((cat) => (
+            {announcementCategories.map(({ value, label }) => (
                <button
-                 key={cat}
-                 onClick={() => setSelectedCategory(cat)}
+                 key={value}
+                 onClick={() => setSelectedCategory(value)}
                  className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                   selectedCategory === cat
+                   selectedCategory === value
                      ? 'bg-orange-600 text-white shadow-md'
                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                  }`}
                >
-                 {cat}
+                 {label}
                </button>
             ))}
           </div>
@@ -218,7 +233,7 @@ export default function AnnouncementsPage() {
                       item.category === 'Mission' ? 'bg-purple-100 text-purple-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {item.category}
+                      {categoryLabels[item.category] || item.category}
                     </span>
                     {item.isPinned && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">

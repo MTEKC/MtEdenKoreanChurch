@@ -138,8 +138,8 @@ export default function SermonsPage() {
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 py-12">
         <header className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-gray-900">Sunday Sermons</h1>
-          <p className="text-gray-600 mt-2">Watch and listen to the latest messages</p>
+          <h1 className="text-4xl font-bold text-gray-900">설교</h1>
+          <p className="text-gray-600 mt-2">최근 설교 말씀을 영상으로 만나보세요.</p>
         </header>
 
         {loading ? (

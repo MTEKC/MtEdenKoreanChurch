@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mt Eden Methodist Church",
-  description: "The Methodist Church of New Zealand",
+  title: "마운트 이든 한인교회 | Mt Eden Korean Church",
+  description: "뉴질랜드 마운트 이든 한인교회 예배 안내, 설교, 소식과 교회 자료실",
   icons: {
     icon: "/logo_high.png",
     shortcut: "/logo_high.png",
@@ -28,10 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>

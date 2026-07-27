@@ -96,10 +96,10 @@ export default function AdminAnnouncementsUpload() {
                                 onChange={(e) => setCategory(e.target.value)}
                                 className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition bg-white"
                             >
-                                <option value="General News">General News</option>
-                                <option value="Monday Class">Monday Class</option>
-                                <option value="Sunday Class">Sunday Class</option>
-                                <option value="Mission">Mission</option>
+                                <option value="General News">교회 소식</option>
+                                <option value="Monday Class">월요 모임</option>
+                                <option value="Sunday Class">주일 모임</option>
+                                <option value="Mission">선교</option>
                             </select>
                         </div>
                     </div>

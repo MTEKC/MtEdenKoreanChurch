@@ -57,7 +57,7 @@ export default function GalleryPage() {
         <main className="min-h-screen bg-white pt-20">
             <Navbar />
             <div className="max-w-6xl mx-auto px-4 py-12">
-                <h1 className="text-4xl font-bold text-gray-900 mb-8">Church Gallery</h1>
+                <h1 className="text-4xl font-bold text-gray-900 mb-8">교회 갤러리</h1>
 
                 {loading ? (
                     // Loading spinner while fetching from Firebase
@@ -68,8 +68,8 @@ export default function GalleryPage() {
                     // Message if no images are uploaded yet
                     <div className="text-center py-20 bg-gray-50 rounded-2xl border border-gray-100">
                         <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <h2 className="text-xl font-semibold text-gray-600">No photos yet</h2>
-                        <p className="text-gray-400 mt-2">Check back soon for updates from our events!</p>
+                        <h2 className="text-xl font-semibold text-gray-600">등록된 사진이 없습니다.</h2>
+                        <p className="text-gray-400 mt-2">행사 사진이 등록되면 이곳에서 확인하실 수 있습니다.</p>
                     </div>
                 ) : (
                     // The Gallery Event Grid

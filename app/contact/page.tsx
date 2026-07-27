@@ -40,10 +40,10 @@ export default function ContactPage() {
             const result = await response.json().catch(() => null) as { error?: string } | null;
 
             if (!response.ok) {
-                throw new Error(result?.error ?? 'Failed to send message.');
+                throw new Error(result?.error ?? '문의 전송에 실패했습니다.');
             }
 
-            setStatus({ type: 'success', message: 'Thank you! Your message has been sent.' });
+            setStatus({ type: 'success', message: '문의가 전송되었습니다. 확인 후 연락드리겠습니다.' });
             setForm({
                 firstName: '',
                 lastName: '',
@@ -54,7 +54,7 @@ export default function ContactPage() {
         } catch (error) {
             setStatus({
                 type: 'error',
-                message: error instanceof Error ? error.message : 'Failed to send message.',
+                message: error instanceof Error ? error.message : '문의 전송에 실패했습니다.',
             });
         } finally {
             setLoading(false);
@@ -67,10 +67,9 @@ export default function ContactPage() {
 
             {/* Header Section */}
             <div className="bg-blue-600 text-white py-16 text-center">
-                <h1 className="text-4xl font-bold mb-4">Get in Touch</h1>
+                <h1 className="text-4xl font-bold mb-4">오시는 길·문의</h1>
                 <p className="text-blue-100 max-w-2xl mx-auto px-4">
-                    We would love to hear from you. Whether you have a prayer request, a question,
-                    or just want to say hello, feel free to reach out.
+                    교회에 궁금하신 점, 기도 요청, 방문 문의가 있으시면 편하게 연락해 주세요.
                 </p>
             </div>
 
@@ -79,7 +78,7 @@ export default function ContactPage() {
 
                     {/* Left Column: Contact Information */}
                     <div className="space-y-8">
-                        <h2 className="text-2xl font-bold text-gray-800">Contact Information</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">교회 안내</h2>
 
                         <div className="space-y-6">
                             <div className="flex items-start gap-4">
@@ -87,7 +86,7 @@ export default function ContactPage() {
                                     <MapPin className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">Visit Us</h3>
+                                    <h3 className="font-semibold text-gray-900">오시는 길</h3>
                                     <p className="text-gray-600">
                                         449 Mount Eden Road, Mount Eden, <br />Auckland, New Zealand
                                     </p>
@@ -99,10 +98,10 @@ export default function ContactPage() {
                                     <Phone className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">Call Us</h3>
+                                    <h3 className="font-semibold text-gray-900">전화 문의</h3>
                                     <p className="text-gray-600">Rev. Han    027 514 1121</p>
                                     <p className="text-gray-600">Rev. Shin   021 126 8180</p>
-                                    <p className="text-sm text-gray-400">Mon-Fri, 9am - 5pm</p>
+                                    <p className="text-sm text-gray-400">월요일-금요일, 오전 9시-오후 5시</p>
                                 </div>
                             </div>
 
@@ -111,7 +110,7 @@ export default function ContactPage() {
                                     <Mail className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900">Email Us</h3>
+                                    <h3 className="font-semibold text-gray-900">이메일</h3>
                                     <p className="text-gray-600">mtedenkoreanchurch@gmail.com</p>
                                 </div>
                             </div>
@@ -139,7 +138,7 @@ export default function ContactPage() {
 
                     {/* Right Column: Contact Form */}
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Send a Message</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-6">문의 보내기</h2>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <input
@@ -154,7 +153,7 @@ export default function ContactPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">이름</label>
                                     <input
                                         id="firstName"
                                         type="text"
@@ -162,11 +161,11 @@ export default function ContactPage() {
                                         onChange={updateField('firstName')}
                                         required
                                         className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                        placeholder="John"
+                                        placeholder="홍길동"
                                     />
                                 </div>
                                 <div>
-                                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">성</label>
                                     <input
                                         id="lastName"
                                         type="text"
@@ -174,13 +173,13 @@ export default function ContactPage() {
                                         onChange={updateField('lastName')}
                                         required
                                         className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                        placeholder="Doe"
+                                        placeholder="김"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
                                 <input
                                     id="email"
                                     type="email"
@@ -193,7 +192,7 @@ export default function ContactPage() {
                             </div>
 
                             <div>
-                                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">문의 내용</label>
                                 <textarea
                                     id="message"
                                     rows={4}
@@ -201,7 +200,7 @@ export default function ContactPage() {
                                     onChange={updateField('message')}
                                     required
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                    placeholder="How can we help you?"
+                                placeholder="문의 내용을 적어 주세요."
                                 ></textarea>
                             </div>
 
@@ -219,9 +218,9 @@ export default function ContactPage() {
                                 disabled={loading}
                                 className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 transition flex items-center justify-center gap-2"
                             >
-                                {loading ? 'Sending...' : (
+                                {loading ? '보내는 중...' : (
                                     <>
-                                        Send Message <Send className="w-4 h-4" />
+                                        문의 보내기 <Send className="w-4 h-4" />
                                     </>
                                 )}
                             </button>
