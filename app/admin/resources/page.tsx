@@ -38,6 +38,29 @@ interface UploadedDocument {
   originalFilename?: string;
 }
 
+interface SignedDocumentUpload {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  allowedFormats: string;
+  useFilename: boolean;
+  uniqueFilename: boolean;
+  overwrite: boolean;
+}
+
+interface CloudinaryUploadResponse {
+  public_id: string;
+  secure_url: string;
+  bytes?: number;
+  format?: string;
+  original_filename?: string;
+  error?: {
+    message?: string;
+  };
+}
+
 interface ResourceItem {
   id: string;
   title: string;
@@ -64,21 +87,47 @@ interface EditForm {
 }
 
 async function uploadDocument(file: File, token: string) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch('/api/cloudinary/documents/upload', {
+  const signatureResponse = await fetch('/api/cloudinary/documents/signature', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!signatureResponse.ok) {
+    const data = (await signatureResponse.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error || 'PDF 업로드 준비에 실패했습니다.');
+  }
+
+  const signedUpload = (await signatureResponse.json()) as SignedDocumentUpload;
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  formData.append('api_key', signedUpload.apiKey);
+  formData.append('timestamp', String(signedUpload.timestamp));
+  formData.append('signature', signedUpload.signature);
+  formData.append('folder', signedUpload.folder);
+  formData.append('allowed_formats', signedUpload.allowedFormats);
+  formData.append('use_filename', String(signedUpload.useFilename));
+  formData.append('unique_filename', String(signedUpload.uniqueFilename));
+  formData.append('overwrite', String(signedUpload.overwrite));
+
+  const response = await fetch(signedUpload.uploadUrl, {
+    method: 'POST',
     body: formData,
   });
 
   if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(data?.error || 'PDF 업로드에 실패했습니다.');
+    const data = (await response.json().catch(() => null)) as CloudinaryUploadResponse | null;
+    throw new Error(data?.error?.message || 'Cloudinary에 PDF를 업로드하지 못했습니다.');
   }
 
-  return response.json() as Promise<UploadedDocument>;
+  const data = (await response.json()) as CloudinaryUploadResponse;
+
+  return {
+    publicId: data.public_id,
+    secureUrl: data.secure_url,
+    bytes: data.bytes,
+    format: data.format,
+    originalFilename: data.original_filename,
+  } satisfies UploadedDocument;
 }
 
 async function removeUploadedDocument(publicId: string, token: string) {
@@ -188,6 +237,13 @@ export default function AdminResourcesPage() {
       return;
     }
 
+    if (selectedFile.size === 0) {
+      setFile(null);
+      event.target.value = '';
+      setStatus({ type: 'error', message: '빈 파일은 업로드할 수 없습니다.' });
+      return;
+    }
+
     setFile(selectedFile);
   };
 
@@ -208,6 +264,11 @@ export default function AdminResourcesPage() {
       token = await auth.currentUser?.getIdToken() || '';
       if (!token) {
         throw new Error('다시 로그인한 후 업로드해 주세요.');
+      }
+
+      const pdfHeader = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
+      if (pdfHeader !== '%PDF-') {
+        throw new Error('선택한 파일이 올바른 PDF가 아닙니다.');
       }
 
       uploadedDocument = await uploadDocument(file, token);

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 interface CloudinaryConfig {
   cloudName: string;
   apiKey: string;
@@ -28,12 +30,16 @@ export interface UploadedCloudinaryImage {
   format?: string;
 }
 
-export interface UploadedCloudinaryDocument {
-  publicId: string;
-  secureUrl: string;
-  bytes?: number;
-  format?: string;
-  originalFilename?: string;
+export interface SignedCloudinaryDocumentUpload {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  allowedFormats: string;
+  useFilename: boolean;
+  uniqueFilename: boolean;
+  overwrite: boolean;
 }
 
 function getCloudinaryConfig(folder = process.env.CLOUDINARY_GALLERY_FOLDER || 'church-gallery'): CloudinaryConfig {
@@ -58,6 +64,38 @@ function getCloudinaryConfig(folder = process.env.CLOUDINARY_GALLERY_FOLDER || '
     apiKey,
     apiSecret,
     folder,
+  };
+}
+
+export function createDocumentUploadSignature(): SignedCloudinaryDocumentUpload {
+  const config = getCloudinaryConfig(process.env.CLOUDINARY_DOCUMENTS_FOLDER || 'church-resources');
+  const timestamp = Math.floor(Date.now() / 1000);
+  const parameters = {
+    allowed_formats: 'pdf',
+    folder: config.folder,
+    overwrite: 'false',
+    timestamp: String(timestamp),
+    unique_filename: 'true',
+    use_filename: 'true',
+  };
+  const stringToSign = Object.entries(parameters)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&');
+  const signature = createHash('sha1')
+    .update(`${stringToSign}${config.apiSecret}`)
+    .digest('hex');
+
+  return {
+    uploadUrl: `https://api.cloudinary.com/v1_1/${config.cloudName}/raw/upload`,
+    apiKey: config.apiKey,
+    timestamp,
+    signature,
+    folder: config.folder,
+    allowedFormats: parameters.allowed_formats,
+    useFilename: true,
+    uniqueFilename: true,
+    overwrite: false,
   };
 }
 
@@ -152,34 +190,6 @@ export async function uploadImageToCloudinary(file: File): Promise<UploadedCloud
 export async function deleteImageFromCloudinary(publicId: string) {
   const config = getCloudinaryConfig();
   return deleteFromCloudinary(publicId, config, 'image');
-}
-
-export async function uploadDocumentToCloudinary(file: File): Promise<UploadedCloudinaryDocument> {
-  const hasPdfExtension = file.name.toLowerCase().endsWith('.pdf');
-
-  if (file.type !== 'application/pdf' && !hasPdfExtension) {
-    throw new Error('Only PDF files can be uploaded.');
-  }
-
-  if (file.size === 0 || file.size > 10 * 1024 * 1024) {
-    throw new Error('PDF files must be between 1 byte and 10 MB.');
-  }
-
-  const header = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
-  if (header !== '%PDF-') {
-    throw new Error('The selected file is not a valid PDF.');
-  }
-
-  const config = getCloudinaryConfig(process.env.CLOUDINARY_DOCUMENTS_FOLDER || 'church-resources');
-  const data = await uploadToCloudinary(file, config, 'raw');
-
-  return {
-    publicId: data.public_id,
-    secureUrl: data.secure_url,
-    bytes: data.bytes,
-    format: data.format,
-    originalFilename: data.original_filename,
-  };
 }
 
 export async function deleteDocumentFromCloudinary(publicId: string) {
