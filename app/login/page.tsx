@@ -19,7 +19,7 @@ export default function LoginPage() {
             // Success! Send them to the Admin Dashboard
             router.push('/admin');
         } catch {
-            setError('Incorrect email or password.');
+            setError('이메일 또는 비밀번호가 올바르지 않습니다.');
         }
     };
 
@@ -31,7 +31,7 @@ export default function LoginPage() {
                         <Lock className="w-8 h-8 text-blue-600" />
                     </div>
                 </div>
-                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Staff Portal</h2>
+                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">관리자 로그인</h2>
 
                 {error && (
                     <div className="bg-red-50 text-red-500 text-sm p-3 rounded mb-4 text-center">
@@ -41,7 +41,7 @@ export default function LoginPage() {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
                         <input
                             type="email"
                             value={email}
@@ -51,7 +51,7 @@ export default function LoginPage() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
                         <input
                             type="password"
                             value={password}
@@ -61,7 +61,7 @@ export default function LoginPage() {
                         />
                     </div>
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold transition">
-                        Sign In
+                        로그인
                     </button>
                 </form>
             </div>

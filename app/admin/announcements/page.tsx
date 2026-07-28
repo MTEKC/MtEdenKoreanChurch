@@ -30,7 +30,7 @@ export default function AdminAnnouncementsUpload() {
                 createdAt: serverTimestamp(), // Keeps them in the correct order
             });
 
-            alert('Announcement posted successfully!');
+            alert('소식·행사를 등록했습니다.');
 
             // Clear the form for the next entry
             setTitle('');
@@ -41,7 +41,7 @@ export default function AdminAnnouncementsUpload() {
 
         } catch (error) {
             console.error("Error posting announcement: ", error);
-            alert('Failed to post announcement. Please try again.');
+            alert('소식·행사 등록에 실패했습니다. 다시 시도해 주세요.');
         } finally {
             setLoading(false);
         }
@@ -51,14 +51,14 @@ export default function AdminAnnouncementsUpload() {
         <AuthGuard>
             <div className="max-w-2xl mx-auto mt-10 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
                 <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-orange-600 mb-6">
-                    <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+                    <ArrowLeft className="w-4 h-4" /> 관리자 화면으로
                 </Link>
 
                 <div className="flex items-center gap-3 mb-6 border-b pb-4">
                     <div className="bg-orange-100 p-2 rounded-lg">
                         <Megaphone className="w-6 h-6 text-orange-600" />
                     </div>
-                    <h1 className="text-2xl font-bold text-gray-800">Post an Announcement</h1>
+                    <h1 className="text-2xl font-bold text-gray-800">소식·행사 등록</h1>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -66,20 +66,20 @@ export default function AdminAnnouncementsUpload() {
                     <div className="grid md:grid-cols-2 gap-4">
                         {/* Title */}
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Announcement Title</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">제목</label>
                             <input
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition"
-                                placeholder="e.g., Annual Church Picnic"
+                                placeholder="예: 전교인 야유회 안내"
                                 required
                             />
                         </div>
 
                         {/* Date */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Date (Optional)</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">날짜 (선택)</label>
                             <input
                                 type="date"
                                 value={date}
@@ -90,7 +90,7 @@ export default function AdminAnnouncementsUpload() {
 
                         {/* Category */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">분류</label>
                             <select
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value)}
@@ -106,13 +106,13 @@ export default function AdminAnnouncementsUpload() {
 
                     {/* Content */}
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Announcement Details</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">상세 내용</label>
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             rows={5}
                             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition resize-none"
-                            placeholder="Write the full details of the announcement here..."
+                            placeholder="소식이나 행사에 대한 자세한 내용을 입력해 주세요."
                             required
                         />
                     </div>
@@ -127,7 +127,7 @@ export default function AdminAnnouncementsUpload() {
                             className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 cursor-pointer"
                         />
                         <label htmlFor="pin-checkbox" className="text-sm font-medium text-gray-700 cursor-pointer">
-                            Pin to the top of the list (Important)
+                            목록 상단에 고정 (중요 공지)
                         </label>
                     </div>
 
@@ -139,10 +139,10 @@ export default function AdminAnnouncementsUpload() {
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="w-5 h-5 animate-spin" /> Posting...
+                                <Loader2 className="w-5 h-5 animate-spin" /> 등록 중...
                             </>
                         ) : (
-                            'Post Announcement'
+                            '소식·행사 등록'
                         )}
                     </button>
                 </form>

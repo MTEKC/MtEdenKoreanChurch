@@ -25,11 +25,11 @@ export default function AdminVersesUpload() {
         createdAt: serverTimestamp(),
       });
 
-      alert('Weekly Word posted successfully!');
+      alert('주간 말씀을 등록했습니다.');
       setTitle(''); setScripture(''); setMessage('');
     } catch (error) {
       console.error("Error posting Weekly Word: ", error);
-      alert('Failed to post. Please try again.');
+      alert('주간 말씀 등록에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setLoading(false);
     }
@@ -39,34 +39,34 @@ export default function AdminVersesUpload() {
     <AuthGuard>
       <div className="max-w-2xl mx-auto mt-10 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
         <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-green-600 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          <ArrowLeft className="w-4 h-4" /> 관리자 화면으로
         </Link>
         
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
           <div className="bg-green-100 p-2 rounded-lg">
             <BookOpen className="w-6 h-6 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">Post Weekly Word</h1>
+          <h1 className="text-2xl font-bold text-gray-800">주간 말씀 등록</h1>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Devotional Title</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="e.g., God's Faithfulness" required />
+            <label className="block text-sm font-semibold text-gray-700 mb-2">제목</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 하나님의 신실하심" required />
           </div>
           
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Scripture Reference</label>
-            <input type="text" value={scripture} onChange={(e) => setScripture(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="e.g., Lamentations 3:22-23" required />
+            <label className="block text-sm font-semibold text-gray-700 mb-2">성경 구절</label>
+            <input type="text" value={scripture} onChange={(e) => setScripture(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 예레미야애가 3:22-23" required />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Message / Devotional</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={8} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none" placeholder="Write your message here..." required />
+            <label className="block text-sm font-semibold text-gray-700 mb-2">말씀 묵상</label>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={8} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none" placeholder="묵상 내용을 입력해 주세요." required />
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center gap-2">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Publish Weekly Word'}
+            {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> 등록 중...</> : '주간 말씀 등록'}
           </button>
         </form>
       </div>
