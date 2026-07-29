@@ -7,30 +7,11 @@ interface CloudinaryConfig {
   folder: string;
 }
 
-interface CloudinaryUploadResponse {
-  public_id: string;
-  secure_url: string;
-  width?: number;
-  height?: number;
-  bytes?: number;
-  format?: string;
-  original_filename?: string;
-}
-
 interface CloudinaryDestroyResponse {
   result?: string;
 }
 
-export interface UploadedCloudinaryImage {
-  publicId: string;
-  secureUrl: string;
-  width?: number;
-  height?: number;
-  bytes?: number;
-  format?: string;
-}
-
-export interface SignedCloudinaryDocumentUpload {
+export interface SignedCloudinaryUpload {
   uploadUrl: string;
   apiKey: string;
   timestamp: number;
@@ -67,11 +48,14 @@ function getCloudinaryConfig(folder = process.env.CLOUDINARY_GALLERY_FOLDER || '
   };
 }
 
-export function createDocumentUploadSignature(): SignedCloudinaryDocumentUpload {
-  const config = getCloudinaryConfig(process.env.CLOUDINARY_DOCUMENTS_FOLDER || 'church-resources');
+function createUploadSignature(
+  config: CloudinaryConfig,
+  resourceType: 'image' | 'raw',
+  allowedFormats: string
+): SignedCloudinaryUpload {
   const timestamp = Math.floor(Date.now() / 1000);
   const parameters = {
-    allowed_formats: 'pdf',
+    allowed_formats: allowedFormats,
     folder: config.folder,
     overwrite: 'false',
     timestamp: String(timestamp),
@@ -87,7 +71,7 @@ export function createDocumentUploadSignature(): SignedCloudinaryDocumentUpload 
     .digest('hex');
 
   return {
-    uploadUrl: `https://api.cloudinary.com/v1_1/${config.cloudName}/raw/upload`,
+    uploadUrl: `https://api.cloudinary.com/v1_1/${config.cloudName}/${resourceType}/upload`,
     apiKey: config.apiKey,
     timestamp,
     signature,
@@ -97,6 +81,22 @@ export function createDocumentUploadSignature(): SignedCloudinaryDocumentUpload 
     uniqueFilename: true,
     overwrite: false,
   };
+}
+
+export function createGalleryUploadSignature(): SignedCloudinaryUpload {
+  return createUploadSignature(
+    getCloudinaryConfig(),
+    'image',
+    'jpg,jpeg,png,webp,gif'
+  );
+}
+
+export function createDocumentUploadSignature(): SignedCloudinaryUpload {
+  return createUploadSignature(
+    getCloudinaryConfig(process.env.CLOUDINARY_DOCUMENTS_FOLDER || 'church-resources'),
+    'raw',
+    'pdf'
+  );
 }
 
 function getAuthorizationHeader(config: CloudinaryConfig) {
@@ -110,34 +110,6 @@ async function parseCloudinaryError(response: Response) {
   } catch {
     return response.statusText;
   }
-}
-
-async function uploadToCloudinary(
-  file: File,
-  config: CloudinaryConfig,
-  resourceType: 'image' | 'raw'
-) {
-  const formData = new FormData();
-
-  formData.append('file', file, file.name);
-  formData.append('folder', config.folder);
-  formData.append('use_filename', 'true');
-  formData.append('unique_filename', 'true');
-  formData.append('overwrite', 'false');
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${config.cloudName}/${resourceType}/upload`, {
-    method: 'POST',
-    headers: {
-      Authorization: getAuthorizationHeader(config),
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Cloudinary upload failed: ${await parseCloudinaryError(response)}`);
-  }
-
-  return (await response.json()) as CloudinaryUploadResponse;
 }
 
 async function deleteFromCloudinary(
@@ -167,24 +139,6 @@ async function deleteFromCloudinary(
 
   const data = (await response.json()) as CloudinaryDestroyResponse;
   return data.result || 'ok';
-}
-
-export async function uploadImageToCloudinary(file: File): Promise<UploadedCloudinaryImage> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Only image files can be uploaded.');
-  }
-
-  const config = getCloudinaryConfig();
-  const data = await uploadToCloudinary(file, config, 'image');
-
-  return {
-    publicId: data.public_id,
-    secureUrl: data.secure_url,
-    width: data.width,
-    height: data.height,
-    bytes: data.bytes,
-    format: data.format,
-  };
 }
 
 export async function deleteImageFromCloudinary(publicId: string) {

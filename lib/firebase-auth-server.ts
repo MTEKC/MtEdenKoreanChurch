@@ -17,7 +17,7 @@ export async function requireFirebaseUser(request: Request) {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
   if (!token || !apiKey) {
-    throw new AuthError('Missing Firebase authentication.');
+    throw new AuthError('Firebase 로그인 정보가 없습니다. 다시 로그인해 주세요.');
   }
 
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
@@ -29,14 +29,14 @@ export async function requireFirebaseUser(request: Request) {
   });
 
   if (!response.ok) {
-    throw new AuthError('Invalid Firebase authentication.');
+    throw new AuthError('Firebase 로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.');
   }
 
   const data = (await response.json()) as FirebaseLookupResponse;
   const user = data.users?.[0];
 
   if (!user) {
-    throw new AuthError('Invalid Firebase authentication.');
+    throw new AuthError('Firebase 로그인 정보가 올바르지 않습니다. 다시 로그인해 주세요.');
   }
 
   return user;

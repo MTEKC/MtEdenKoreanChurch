@@ -7,29 +7,111 @@ import AuthGuard from '@/components/AuthGuard'; // Protects this page
 import { ImagePlus, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-interface CloudinaryUploadResult {
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_COUNT = 20;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+interface SignedGalleryUpload {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  allowedFormats: string;
+  useFilename: boolean;
+  uniqueFilename: boolean;
+  overwrite: boolean;
+}
+
+interface CloudinaryUploadResponse {
+  public_id: string;
+  secure_url: string;
+  error?: {
+    message?: string;
+  };
+}
+
+interface UploadedGalleryImage {
   publicId: string;
   secureUrl: string;
 }
 
-async function uploadImageToCloudinary(file: File, token: string) {
-  const formData = new FormData();
-  formData.append('file', file);
+function isSupportedImage(file: File) {
+  const lowerCaseName = file.name.toLowerCase();
+  return ALLOWED_IMAGE_TYPES.has(file.type)
+    || ALLOWED_IMAGE_EXTENSIONS.some((extension) => lowerCaseName.endsWith(extension));
+}
 
-  const response = await fetch('/api/cloudinary/upload', {
+async function getGalleryUploadSignature(token: string) {
+  const response = await fetch('/api/cloudinary/gallery/signature', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    body: formData,
   });
 
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(data?.error || '이미지 저장소 업로드에 실패했습니다.');
+    throw new Error(data?.error || '갤러리 업로드 준비에 실패했습니다.');
   }
 
-  return response.json() as Promise<CloudinaryUploadResult>;
+  return response.json() as Promise<SignedGalleryUpload>;
+}
+
+async function uploadImageToCloudinary(file: File, signedUpload: SignedGalleryUpload) {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  formData.append('api_key', signedUpload.apiKey);
+  formData.append('timestamp', String(signedUpload.timestamp));
+  formData.append('signature', signedUpload.signature);
+  formData.append('folder', signedUpload.folder);
+  formData.append('allowed_formats', signedUpload.allowedFormats);
+  formData.append('use_filename', String(signedUpload.useFilename));
+  formData.append('unique_filename', String(signedUpload.uniqueFilename));
+  formData.append('overwrite', String(signedUpload.overwrite));
+
+  const response = await fetch(signedUpload.uploadUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as CloudinaryUploadResponse | null;
+    throw new Error(data?.error?.message || 'Cloudinary에 이미지를 업로드하지 못했습니다.');
+  }
+
+  const data = (await response.json()) as CloudinaryUploadResponse;
+
+  return {
+    publicId: data.public_id,
+    secureUrl: data.secure_url,
+  } satisfies UploadedGalleryImage;
+}
+
+async function removeUploadedImages(publicIds: string[], token: string) {
+  const response = await fetch('/api/cloudinary/delete', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ publicIds }),
+  });
+  const data = (await response.json().catch(() => null)) as {
+    error?: string;
+    failed?: unknown[];
+  } | null;
+
+  if (!response.ok || (Array.isArray(data?.failed) && data.failed.length > 0)) {
+    throw new Error(data?.error || '업로드된 이미지 정리에 실패했습니다.');
+  }
 }
 
 export default function AdminGalleryUpload() {
@@ -42,7 +124,40 @@ export default function AdminGalleryUpload() {
 
   // 1. Handle File Selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setImageFiles(Array.from(e.target.files || []));
+    const selectedFiles = Array.from(e.target.files || []);
+
+    if (selectedFiles.length > MAX_IMAGE_COUNT) {
+      setImageFiles([]);
+      e.target.value = '';
+      alert(`이미지는 한 번에 최대 ${MAX_IMAGE_COUNT}장까지 선택할 수 있습니다.`);
+      return;
+    }
+
+    const unsupportedFile = selectedFiles.find((file) => !isSupportedImage(file));
+    if (unsupportedFile) {
+      setImageFiles([]);
+      e.target.value = '';
+      alert(`"${unsupportedFile.name}" 파일은 지원하지 않는 형식입니다.\nJPG, PNG, WebP, GIF 이미지만 선택해 주세요.`);
+      return;
+    }
+
+    const emptyFile = selectedFiles.find((file) => file.size === 0);
+    if (emptyFile) {
+      setImageFiles([]);
+      e.target.value = '';
+      alert(`"${emptyFile.name}" 파일이 비어 있습니다.`);
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find((file) => file.size > MAX_IMAGE_SIZE);
+    if (oversizedFile) {
+      setImageFiles([]);
+      e.target.value = '';
+      alert(`"${oversizedFile.name}" 파일이 10MB를 초과합니다.`);
+      return;
+    }
+
+    setImageFiles(selectedFiles);
   };
 
   // 2. Handle the Upload Process
@@ -60,18 +175,20 @@ export default function AdminGalleryUpload() {
 
     setLoading(true);
     setUploadedCount(0);
+    let token = '';
+    const uploadedImages: { publicId: string; url: string }[] = [];
 
     try {
-      const token = await auth.currentUser?.getIdToken();
+      token = await auth.currentUser?.getIdToken() || '';
 
       if (!token) {
         throw new Error('다시 로그인한 후 이미지를 업로드해 주세요.');
       }
 
-      const uploadedImages: { publicId: string; url: string }[] = [];
+      const signedUpload = await getGalleryUploadSignature(token);
 
       for (const [index, file] of imageFiles.entries()) {
-        const uploadedImage = await uploadImageToCloudinary(file, token);
+        const uploadedImage = await uploadImageToCloudinary(file, signedUpload);
 
         uploadedImages.push({
           publicId: uploadedImage.publicId,
@@ -109,7 +226,17 @@ export default function AdminGalleryUpload() {
 
     } catch (error) {
       console.error("Error uploading gallery event: ", error);
-      alert('갤러리 행사 등록에 실패했습니다. 다시 시도해 주세요.');
+
+      if (uploadedImages.length > 0 && token) {
+        await removeUploadedImages(
+          uploadedImages.map((image) => image.publicId),
+          token
+        ).catch((cleanupError) => {
+          console.error('Error cleaning up uploaded gallery images:', cleanupError);
+        });
+      }
+
+      alert(error instanceof Error ? error.message : '갤러리 행사 등록에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setLoading(false);
     }
@@ -174,12 +301,15 @@ export default function AdminGalleryUpload() {
             <input 
               id="file-upload"
               type="file" 
-              accept="image/*" // Only allow image files
+              accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
               multiple
               onChange={handleFileChange}
               className="w-full p-2 border border-gray-200 rounded-lg text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition"
               required
             />
+            <p className="mt-2 text-xs text-gray-500">
+              JPG, PNG, WebP, GIF만 가능하며 한 장당 10MB, 한 번에 최대 20장까지 등록할 수 있습니다.
+            </p>
             {imageFiles.length > 0 && (
               <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
                 <p className="text-sm font-semibold text-blue-900">
