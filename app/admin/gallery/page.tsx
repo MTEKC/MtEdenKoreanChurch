@@ -1,11 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import AuthGuard from '@/components/AuthGuard'; // Protects this page
-import { ImagePlus, Loader2, ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  ExternalLink,
+  ImagePlus,
+  Images,
+  Loader2,
+  Pencil,
+  Trash2,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
+import {
+  GalleryItem,
+  getGalleryCloudinaryPublicIds,
+  getGalleryCoverImage,
+  getGalleryImageCount,
+} from '@/lib/gallery';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_IMAGE_COUNT = 20;
@@ -41,6 +66,12 @@ interface CloudinaryUploadResponse {
 interface UploadedGalleryImage {
   publicId: string;
   secureUrl: string;
+}
+
+interface EditGalleryForm {
+  title: string;
+  description: string;
+  date: string;
 }
 
 function isSupportedImage(file: File) {
@@ -121,6 +152,38 @@ export default function AdminGalleryUpload() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [uploadedCount, setUploadedCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(true);
+  const [galleryError, setGalleryError] = useState(false);
+  const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
+  const [editForm, setEditForm] = useState<EditGalleryForm>({
+    title: '',
+    description: '',
+    date: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const galleryQuery = query(collection(db, 'gallery'), orderBy('createdAt', 'desc'));
+
+    return onSnapshot(
+      galleryQuery,
+      (snapshot) => {
+        setGalleryItems(snapshot.docs.map((galleryDoc) => ({
+          id: galleryDoc.id,
+          ...galleryDoc.data(),
+        })) as GalleryItem[]);
+        setGalleryLoading(false);
+        setGalleryError(false);
+      },
+      (error) => {
+        console.error('Error loading gallery events:', error);
+        setGalleryLoading(false);
+        setGalleryError(true);
+      }
+    );
+  }, []);
 
   // 1. Handle File Selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,18 +305,110 @@ export default function AdminGalleryUpload() {
     }
   };
 
+  const openEditDialog = (item: GalleryItem) => {
+    setEditingItem(item);
+    setEditForm({
+      title: item.title,
+      description: item.description || '',
+      date: item.date || '',
+    });
+  };
+
+  const closeEditDialog = () => {
+    if (!savingEdit) {
+      setEditingItem(null);
+    }
+  };
+
+  const handleEditSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!editingItem || !editForm.title.trim() || !editForm.description.trim()) {
+      alert('행사 제목과 간단한 설명을 입력해 주세요.');
+      return;
+    }
+
+    setSavingEdit(true);
+
+    try {
+      await updateDoc(doc(db, 'gallery', editingItem.id), {
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        date: editForm.date,
+        updatedAt: serverTimestamp(),
+      });
+      setEditingItem(null);
+      alert('갤러리 행사 정보를 수정했습니다.');
+    } catch (error) {
+      console.error('Error updating gallery event:', error);
+      alert(error instanceof Error ? error.message : '갤러리 행사 수정에 실패했습니다.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDelete = async (item: GalleryItem) => {
+    const confirmed = window.confirm(
+      `"${item.title}" 갤러리 행사를 삭제하시겠습니까?\n연결된 이미지도 함께 삭제되며 복구할 수 없습니다.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(item.id);
+
+    try {
+      const publicIds = getGalleryCloudinaryPublicIds(item);
+      const token = publicIds.length > 0
+        ? await auth.currentUser?.getIdToken() || ''
+        : '';
+
+      if (publicIds.length > 0 && !token) {
+        throw new Error('다시 로그인한 후 갤러리 행사를 삭제해 주세요.');
+      }
+
+      await deleteDoc(doc(db, 'gallery', item.id));
+
+      if (publicIds.length > 0) {
+        try {
+          await removeUploadedImages(publicIds, token);
+        } catch (cleanupError) {
+          console.error('Error cleaning up gallery images:', cleanupError);
+          alert('행사는 삭제했지만 Cloudinary 이미지 정리에 실패했습니다. 저장소를 확인해 주세요.');
+          return;
+        }
+      }
+
+      alert('갤러리 행사와 연결된 이미지를 삭제했습니다.');
+    } catch (error) {
+      console.error('Error deleting gallery event:', error);
+      alert(error instanceof Error ? error.message : '갤러리 행사 삭제에 실패했습니다.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <AuthGuard>
-      <div className="max-w-xl mx-auto mt-10 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
+      <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-6xl">
         <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 mb-6">
           <ArrowLeft className="w-4 h-4" /> 관리자 화면으로
         </Link>
 
+        <div className="mb-8">
+          <p className="text-sm font-semibold text-blue-700">갤러리 관리</p>
+          <h1 className="mt-1 text-3xl font-bold text-slate-900">갤러리 행사 관리</h1>
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+        <section className="border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-3 mb-6 border-b pb-4">
           <div className="bg-blue-100 p-2 rounded-lg">
             <ImagePlus className="w-6 h-6 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">갤러리 행사 등록</h1>
+          <h2 className="text-xl font-bold text-gray-800">새 갤러리 행사 등록</h2>
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -341,7 +496,224 @@ export default function AdminGalleryUpload() {
             )}
           </button>
         </form>
-      </div>
+        </section>
+
+        <section className="border border-slate-200 bg-white shadow-sm" aria-labelledby="gallery-list-heading">
+          <div className="border-b border-slate-200 px-6 py-5">
+            <h2 id="gallery-list-heading" className="text-xl font-bold text-slate-900">
+              등록된 갤러리 행사
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">총 {galleryItems.length}개</p>
+          </div>
+
+          {galleryLoading ? (
+            <div className="flex justify-center px-6 py-16" aria-label="갤러리 행사를 불러오는 중">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-700" aria-hidden="true" />
+            </div>
+          ) : galleryError ? (
+            <p className="m-6 border-l-4 border-red-600 bg-red-50 px-4 py-4 text-sm text-red-800">
+              갤러리 목록을 불러오지 못했습니다. Firestore 규칙과 네트워크 상태를 확인해 주세요.
+            </p>
+          ) : galleryItems.length === 0 ? (
+            <p className="px-6 py-16 text-center text-sm text-slate-500">
+              등록된 갤러리 행사가 없습니다.
+            </p>
+          ) : (
+            <div className="divide-y divide-slate-200">
+              {galleryItems.map((item) => {
+                const coverImage = getGalleryCoverImage(item);
+                const imageCount = getGalleryImageCount(item);
+
+                return (
+                  <article key={item.id} className="px-6 py-5">
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div className="h-20 w-24 shrink-0 overflow-hidden rounded-md bg-slate-100">
+                        {coverImage ? (
+                          // Cloudinary and legacy gallery URLs can use different hosts.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={coverImage} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-slate-300">
+                            <Images className="h-7 w-7" aria-hidden="true" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words text-base font-bold text-slate-900">{item.title}</h3>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                          <span>사진 {imageCount}장</span>
+                          {item.date ? <span>{item.date.replaceAll('-', '. ')}</span> : null}
+                        </div>
+                        {item.description ? (
+                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                            {item.description}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <Link
+                        href={`/gallery/${item.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-700 hover:text-blue-800"
+                      >
+                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                        미리보기
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => openEditDialog(item)}
+                        disabled={deletingId === item.id}
+                        className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 px-3 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-700 hover:text-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        disabled={deletingId === item.id}
+                        className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 px-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        삭제
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        </div>
+
+        {editingItem ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                closeEditDialog();
+              }
+            }}
+          >
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-gallery-heading"
+              className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-md bg-white p-6 shadow-xl sm:p-8"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-blue-700">갤러리 행사 정보</p>
+                  <h2 id="edit-gallery-heading" className="mt-1 text-2xl font-bold text-slate-900">
+                    갤러리 행사 수정
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeEditDialog}
+                  disabled={savingEdit}
+                  title="닫기"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">닫기</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="mt-7 space-y-5">
+                <div>
+                  <label htmlFor="edit-gallery-title" className="mb-2 block text-sm font-semibold text-slate-700">
+                    행사 제목
+                  </label>
+                  <input
+                    id="edit-gallery-title"
+                    type="text"
+                    value={editForm.title}
+                    onChange={(event) => setEditForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))}
+                    maxLength={120}
+                    required
+                    autoFocus
+                    className="w-full rounded-md border border-slate-300 px-3 py-2.5 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-gallery-date" className="mb-2 block text-sm font-semibold text-slate-700">
+                    행사 날짜 <span className="font-normal text-slate-400">(선택)</span>
+                  </label>
+                  <input
+                    id="edit-gallery-date"
+                    type="date"
+                    value={editForm.date}
+                    onChange={(event) => setEditForm((current) => ({
+                      ...current,
+                      date: event.target.value,
+                    }))}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2.5 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-gallery-description" className="mb-2 block text-sm font-semibold text-slate-700">
+                    간단한 설명
+                  </label>
+                  <textarea
+                    id="edit-gallery-description"
+                    value={editForm.description}
+                    onChange={(event) => setEditForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))}
+                    rows={6}
+                    maxLength={500}
+                    required
+                    className="w-full resize-y rounded-md border border-slate-300 px-3 py-2.5 outline-none transition focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <p className="mt-1 text-right text-xs text-slate-400">
+                    {editForm.description.length}/500
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">
+                  <button
+                    type="button"
+                    onClick={closeEditDialog}
+                    disabled={savingEdit}
+                    className="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit || !editForm.title.trim() || !editForm.description.trim()}
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-blue-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  >
+                    {savingEdit ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    저장
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        ) : null}
+        </div>
+      </main>
     </AuthGuard>
   );
 }
