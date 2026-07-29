@@ -25,6 +25,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore';
 import AuthGuard from '@/components/AuthGuard';
+import AdminNotice from '@/components/admin/AdminNotice';
 import { auth, db } from '@/lib/firebase';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -156,18 +157,6 @@ function formatFileSize(bytes?: number) {
   }
 
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
-function statusClassName(type: StatusMessage['type']) {
-  if (type === 'success') {
-    return 'border-green-600 bg-green-50 text-green-800';
-  }
-
-  if (type === 'warning') {
-    return 'border-amber-500 bg-amber-50 text-amber-900';
-  }
-
-  return 'border-red-600 bg-red-50 text-red-800';
 }
 
 export default function AdminResourcesPage() {
@@ -484,9 +473,10 @@ export default function AdminResourcesPage() {
                 </div>
 
                 {status ? (
-                  <p role="status" className={`border-l-4 px-4 py-3 text-sm ${statusClassName(status.type)}`}>
-                    {status.message}
-                  </p>
+                  <AdminNotice
+                    {...status}
+                    onDismiss={() => setStatus(null)}
+                  />
                 ) : null}
 
                 <button
@@ -506,9 +496,12 @@ export default function AdminResourcesPage() {
               </div>
 
               {managementStatus ? (
-                <p role="status" className={`mx-6 mt-5 border-l-4 px-4 py-3 text-sm ${statusClassName(managementStatus.type)}`}>
-                  {managementStatus.message}
-                </p>
+                <div className="mx-6 mt-5">
+                  <AdminNotice
+                    {...managementStatus}
+                    onDismiss={() => setManagementStatus(null)}
+                  />
+                </div>
               ) : null}
 
               {resourcesLoading ? (
@@ -660,9 +653,11 @@ export default function AdminResourcesPage() {
                 </div>
 
                 {editError ? (
-                  <p role="alert" className="border-l-4 border-red-600 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    {editError}
-                  </p>
+                  <AdminNotice
+                    type="error"
+                    message={editError}
+                    onDismiss={() => setEditError('')}
+                  />
                 ) : null}
 
                 <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">

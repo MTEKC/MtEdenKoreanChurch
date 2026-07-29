@@ -93,6 +93,7 @@
 
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
+import LiteYouTubeEmbed from '@/components/LiteYouTubeEmbed';
 import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -128,7 +129,7 @@ export default function SermonsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this sermon?")) {
+    if (confirm("이 설교를 삭제하시겠습니까?\n삭제한 설교는 복구할 수 없습니다.")) {
       await deleteDoc(doc(db, 'sermons', id));
     }
   };
@@ -148,7 +149,7 @@ export default function SermonsPage() {
           </div>
         ) : sermons.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-200">
-            <p className="text-gray-500">No sermons have been uploaded yet.</p>
+            <p className="text-gray-500">등록된 설교가 없습니다.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-8">
@@ -166,17 +167,12 @@ export default function SermonsPage() {
                   </button>
                 )}
 
-                {/* YouTube Video Section */}
+                {/* YouTube loads only after the visitor presses play. */}
                 <div className="relative aspect-video bg-black">
-                  <iframe
-                    width="100%"
-                    height="100%"
-                    src={`https://www.youtube.com/embed/${sermon.youtubeId}`}
+                  <LiteYouTubeEmbed
+                    videoId={sermon.youtubeId}
                     title={sermon.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="border-0"
-                  ></iframe>
+                  />
                 </div>
 
                 {/* Sermon Details */}

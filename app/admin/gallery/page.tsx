@@ -14,6 +14,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import AuthGuard from '@/components/AuthGuard'; // Protects this page
+import AdminNotice, { AdminNoticeMessage } from '@/components/admin/AdminNotice';
 import {
   ArrowLeft,
   ExternalLink,
@@ -163,6 +164,9 @@ export default function AdminGalleryUpload() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [uploadNotice, setUploadNotice] = useState<AdminNoticeMessage | null>(null);
+  const [managementNotice, setManagementNotice] = useState<AdminNoticeMessage | null>(null);
+  const [editNotice, setEditNotice] = useState<AdminNoticeMessage | null>(null);
 
   useEffect(() => {
     const galleryQuery = query(collection(db, 'gallery'), orderBy('createdAt', 'desc'));
@@ -188,11 +192,15 @@ export default function AdminGalleryUpload() {
   // 1. Handle File Selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
+    setUploadNotice(null);
 
     if (selectedFiles.length > MAX_IMAGE_COUNT) {
       setImageFiles([]);
       e.target.value = '';
-      alert(`이미지는 한 번에 최대 ${MAX_IMAGE_COUNT}장까지 선택할 수 있습니다.`);
+      setUploadNotice({
+        type: 'error',
+        message: `이미지는 한 번에 최대 ${MAX_IMAGE_COUNT}장까지 선택할 수 있습니다.`,
+      });
       return;
     }
 
@@ -200,7 +208,10 @@ export default function AdminGalleryUpload() {
     if (unsupportedFile) {
       setImageFiles([]);
       e.target.value = '';
-      alert(`"${unsupportedFile.name}" 파일은 지원하지 않는 형식입니다.\nJPG, PNG, WebP, GIF 이미지만 선택해 주세요.`);
+      setUploadNotice({
+        type: 'error',
+        message: `"${unsupportedFile.name}" 파일은 지원하지 않는 형식입니다. JPG, PNG, WebP, GIF 이미지만 선택해 주세요.`,
+      });
       return;
     }
 
@@ -208,7 +219,10 @@ export default function AdminGalleryUpload() {
     if (emptyFile) {
       setImageFiles([]);
       e.target.value = '';
-      alert(`"${emptyFile.name}" 파일이 비어 있습니다.`);
+      setUploadNotice({
+        type: 'error',
+        message: `"${emptyFile.name}" 파일이 비어 있습니다.`,
+      });
       return;
     }
 
@@ -216,7 +230,10 @@ export default function AdminGalleryUpload() {
     if (oversizedFile) {
       setImageFiles([]);
       e.target.value = '';
-      alert(`"${oversizedFile.name}" 파일이 10MB를 초과합니다.`);
+      setUploadNotice({
+        type: 'error',
+        message: `"${oversizedFile.name}" 파일이 10MB를 초과합니다.`,
+      });
       return;
     }
 
@@ -226,13 +243,20 @@ export default function AdminGalleryUpload() {
   // 2. Handle the Upload Process
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadNotice(null);
     if (!title.trim() || !description.trim()) {
-      alert("행사 제목과 간단한 설명을 입력해 주세요.");
+      setUploadNotice({
+        type: 'error',
+        message: '행사 제목과 간단한 설명을 입력해 주세요.',
+      });
       return;
     }
 
     if (imageFiles.length === 0) {
-      alert("이미지를 한 장 이상 선택해 주세요.");
+      setUploadNotice({
+        type: 'error',
+        message: '이미지를 한 장 이상 선택해 주세요.',
+      });
       return;
     }
 
@@ -274,7 +298,10 @@ export default function AdminGalleryUpload() {
         createdAt: serverTimestamp(),
       });
 
-      alert('갤러리 행사를 등록했습니다.');
+      setUploadNotice({
+        type: 'success',
+        message: '갤러리 행사를 등록했습니다.',
+      });
       
       // Clear the form
       setTitle('');
@@ -299,13 +326,20 @@ export default function AdminGalleryUpload() {
         });
       }
 
-      alert(error instanceof Error ? error.message : '갤러리 행사 등록에 실패했습니다. 다시 시도해 주세요.');
+      setUploadNotice({
+        type: 'error',
+        message: error instanceof Error
+          ? error.message
+          : '갤러리 행사 등록에 실패했습니다. 다시 시도해 주세요.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const openEditDialog = (item: GalleryItem) => {
+    setEditNotice(null);
+    setManagementNotice(null);
     setEditingItem(item);
     setEditForm({
       title: item.title,
@@ -317,6 +351,7 @@ export default function AdminGalleryUpload() {
   const closeEditDialog = () => {
     if (!savingEdit) {
       setEditingItem(null);
+      setEditNotice(null);
     }
   };
 
@@ -324,11 +359,15 @@ export default function AdminGalleryUpload() {
     event.preventDefault();
 
     if (!editingItem || !editForm.title.trim() || !editForm.description.trim()) {
-      alert('행사 제목과 간단한 설명을 입력해 주세요.');
+      setEditNotice({
+        type: 'error',
+        message: '행사 제목과 간단한 설명을 입력해 주세요.',
+      });
       return;
     }
 
     setSavingEdit(true);
+    setEditNotice(null);
 
     try {
       await updateDoc(doc(db, 'gallery', editingItem.id), {
@@ -338,10 +377,18 @@ export default function AdminGalleryUpload() {
         updatedAt: serverTimestamp(),
       });
       setEditingItem(null);
-      alert('갤러리 행사 정보를 수정했습니다.');
+      setManagementNotice({
+        type: 'success',
+        message: '갤러리 행사 정보를 수정했습니다.',
+      });
     } catch (error) {
       console.error('Error updating gallery event:', error);
-      alert(error instanceof Error ? error.message : '갤러리 행사 수정에 실패했습니다.');
+      setEditNotice({
+        type: 'error',
+        message: error instanceof Error
+          ? error.message
+          : '갤러리 행사 수정에 실패했습니다.',
+      });
     } finally {
       setSavingEdit(false);
     }
@@ -357,6 +404,7 @@ export default function AdminGalleryUpload() {
     }
 
     setDeletingId(item.id);
+    setManagementNotice(null);
 
     try {
       const publicIds = getGalleryCloudinaryPublicIds(item);
@@ -375,15 +423,26 @@ export default function AdminGalleryUpload() {
           await removeUploadedImages(publicIds, token);
         } catch (cleanupError) {
           console.error('Error cleaning up gallery images:', cleanupError);
-          alert('행사는 삭제했지만 Cloudinary 이미지 정리에 실패했습니다. 저장소를 확인해 주세요.');
+          setManagementNotice({
+            type: 'warning',
+            message: '행사는 삭제했지만 Cloudinary 이미지 정리에 실패했습니다. 저장소를 확인해 주세요.',
+          });
           return;
         }
       }
 
-      alert('갤러리 행사와 연결된 이미지를 삭제했습니다.');
+      setManagementNotice({
+        type: 'success',
+        message: '갤러리 행사와 연결된 이미지를 삭제했습니다.',
+      });
     } catch (error) {
       console.error('Error deleting gallery event:', error);
-      alert(error instanceof Error ? error.message : '갤러리 행사 삭제에 실패했습니다.');
+      setManagementNotice({
+        type: 'error',
+        message: error instanceof Error
+          ? error.message
+          : '갤러리 행사 삭제에 실패했습니다.',
+      });
     } finally {
       setDeletingId(null);
     }
@@ -481,6 +540,13 @@ export default function AdminGalleryUpload() {
             )}
           </div>
 
+          {uploadNotice ? (
+            <AdminNotice
+              {...uploadNotice}
+              onDismiss={() => setUploadNotice(null)}
+            />
+          ) : null}
+
           {/* Submit Button */}
           <button 
             type="submit" 
@@ -505,6 +571,15 @@ export default function AdminGalleryUpload() {
             </h2>
             <p className="mt-1 text-sm text-slate-500">총 {galleryItems.length}개</p>
           </div>
+
+          {managementNotice ? (
+            <div className="mx-6 mt-5">
+              <AdminNotice
+                {...managementNotice}
+                onDismiss={() => setManagementNotice(null)}
+              />
+            </div>
+          ) : null}
 
           {galleryLoading ? (
             <div className="flex justify-center px-6 py-16" aria-label="갤러리 행사를 불러오는 중">
@@ -685,6 +760,13 @@ export default function AdminGalleryUpload() {
                     {editForm.description.length}/500
                   </p>
                 </div>
+
+                {editNotice ? (
+                  <AdminNotice
+                    {...editNotice}
+                    onDismiss={() => setEditNotice(null)}
+                  />
+                ) : null}
 
                 <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">
                   <button

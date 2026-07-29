@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import AuthGuard from '@/components/AuthGuard';
+import AdminNotice, { AdminNoticeMessage } from '@/components/admin/AdminNotice';
 import { auth, db } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
   const [verses, setVerses] = useState<AdminListItem[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [notice, setNotice] = useState<AdminNoticeMessage | null>(null);
 
   // Fetch all data when the dashboard loads
   useEffect(() => {
@@ -80,12 +82,20 @@ export default function AdminDashboard() {
   
   const deleteTextDoc = async (collectionName: string, id: string) => {
     if (confirm("선택한 항목을 영구적으로 삭제하시겠습니까?\n삭제한 항목은 복구할 수 없습니다.")) {
-      await deleteDoc(doc(db, collectionName, id));
+      setNotice(null);
+      try {
+        await deleteDoc(doc(db, collectionName, id));
+        setNotice({ type: 'success', message: '선택한 항목을 삭제했습니다.' });
+      } catch (error) {
+        console.error('Error deleting content:', error);
+        setNotice({ type: 'error', message: '항목 삭제에 실패했습니다. 다시 시도해 주세요.' });
+      }
     }
   };
 
   const deleteGalleryDoc = async (item: GalleryItem) => {
     if (confirm(`"${item.title}" 갤러리 행사를 삭제하시겠습니까?\n삭제한 행사는 복구할 수 없습니다.`)) {
+      setNotice(null);
       try {
         const publicIds = getGalleryCloudinaryPublicIds(item);
 
@@ -113,20 +123,27 @@ export default function AdminDashboard() {
 
           if (Array.isArray(result?.failed) && result.failed.length > 0) {
             console.error("Some Cloudinary images could not be deleted:", result.failed);
-            alert("일부 이미지 파일을 삭제하지 못했습니다. 갤러리 정보 삭제를 계속합니다.");
+            setNotice({
+              type: 'warning',
+              message: '일부 이미지 파일을 삭제하지 못했습니다. Cloudinary 저장소를 확인해 주세요.',
+            });
           }
         }
 
         await deleteDoc(doc(db, 'gallery', item.id));
+        setNotice((current) => current?.type === 'warning'
+          ? current
+          : { type: 'success', message: '갤러리 행사를 삭제했습니다.' });
       } catch (error) {
         console.error("Error deleting gallery event:", error);
-        alert("갤러리 행사 삭제에 실패했습니다. 다시 시도해 주세요.");
+        setNotice({ type: 'error', message: '갤러리 행사 삭제에 실패했습니다. 다시 시도해 주세요.' });
       }
     }
   };
 
   const deleteResourceDoc = async (item: ResourceItem) => {
     if (confirm(`"${item.title}" 자료를 삭제하시겠습니까?\n삭제한 자료는 복구할 수 없습니다.`)) {
+      setNotice(null);
       try {
         if (item.filePublicId) {
           const token = await auth.currentUser?.getIdToken();
@@ -150,9 +167,10 @@ export default function AdminDashboard() {
         }
 
         await deleteDoc(doc(db, 'resources', item.id));
+        setNotice({ type: 'success', message: '자료를 삭제했습니다.' });
       } catch (error) {
         console.error('Error deleting resource:', error);
-        alert('자료 삭제에 실패했습니다. 다시 시도해 주세요.');
+        setNotice({ type: 'error', message: '자료 삭제에 실패했습니다. 다시 시도해 주세요.' });
       }
     }
   };
@@ -187,6 +205,15 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+
+        {notice ? (
+          <div className="mb-8">
+            <AdminNotice
+              {...notice}
+              onDismiss={() => setNotice(null)}
+            />
+          </div>
+        ) : null}
 
         {/* --- SECTION 1: ADD NEW CONTENT --- */}
         <h2 className="text-xl font-bold text-gray-800 mb-4">새 콘텐츠 등록</h2>

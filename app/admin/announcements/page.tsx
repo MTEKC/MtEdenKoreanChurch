@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import AuthGuard from '@/components/AuthGuard';
+import AdminNotice, { AdminNoticeMessage } from '@/components/admin/AdminNotice';
 import { Megaphone, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -14,23 +15,25 @@ export default function AdminAnnouncementsUpload() {
     const [content, setContent] = useState('');
     const [isPinned, setIsPinned] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [notice, setNotice] = useState<AdminNoticeMessage | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setNotice(null);
         setLoading(true);
 
         try {
             // Save the text data into the 'announcements' collection in Firestore
             await addDoc(collection(db, 'announcements'), {
-                title,
+                title: title.trim(),
                 date,
                 category,
-                content,
+                content: content.trim(),
                 isPinned,
                 createdAt: serverTimestamp(), // Keeps them in the correct order
             });
 
-            alert('소식·행사를 등록했습니다.');
+            setNotice({ type: 'success', message: '소식·행사를 등록했습니다.' });
 
             // Clear the form for the next entry
             setTitle('');
@@ -41,7 +44,12 @@ export default function AdminAnnouncementsUpload() {
 
         } catch (error) {
             console.error("Error posting announcement: ", error);
-            alert('소식·행사 등록에 실패했습니다. 다시 시도해 주세요.');
+            setNotice({
+                type: 'error',
+                message: error instanceof Error
+                    ? error.message
+                    : '소식·행사 등록에 실패했습니다. 다시 시도해 주세요.',
+            });
         } finally {
             setLoading(false);
         }
@@ -71,10 +79,12 @@ export default function AdminAnnouncementsUpload() {
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
+                                maxLength={120}
                                 className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition"
                                 placeholder="예: 전교인 야유회 안내"
                                 required
                             />
+                            <p className="mt-1 text-right text-xs text-gray-400">{title.length}/120</p>
                         </div>
 
                         {/* Date */}
@@ -111,10 +121,12 @@ export default function AdminAnnouncementsUpload() {
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             rows={5}
+                            maxLength={2000}
                             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none transition resize-none"
                             placeholder="소식이나 행사에 대한 자세한 내용을 입력해 주세요."
                             required
                         />
+                        <p className="mt-1 text-right text-xs text-gray-400">{content.length}/2000</p>
                     </div>
 
                     {/* Pin Checkbox */}
@@ -130,6 +142,13 @@ export default function AdminAnnouncementsUpload() {
                             목록 상단에 고정 (중요 공지)
                         </label>
                     </div>
+
+                    {notice ? (
+                        <AdminNotice
+                            {...notice}
+                            onDismiss={() => setNotice(null)}
+                        />
+                    ) : null}
 
                     {/* Submit Button */}
                     <button

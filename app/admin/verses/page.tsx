@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import AuthGuard from '@/components/AuthGuard';
+import AdminNotice, { AdminNoticeMessage } from '@/components/admin/AdminNotice';
 import { BookOpen, Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -12,24 +13,31 @@ export default function AdminVersesUpload() {
   const [scripture, setScripture] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<AdminNoticeMessage | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNotice(null);
     setLoading(true);
 
     try {
       await addDoc(collection(db, 'verses'), {
-        title,
-        scripture,
-        message,
+        title: title.trim(),
+        scripture: scripture.trim(),
+        message: message.trim(),
         createdAt: serverTimestamp(),
       });
 
-      alert('주간 말씀을 등록했습니다.');
+      setNotice({ type: 'success', message: '주간 말씀을 등록했습니다.' });
       setTitle(''); setScripture(''); setMessage('');
     } catch (error) {
       console.error("Error posting Weekly Word: ", error);
-      alert('주간 말씀 등록에 실패했습니다. 다시 시도해 주세요.');
+      setNotice({
+        type: 'error',
+        message: error instanceof Error
+          ? error.message
+          : '주간 말씀 등록에 실패했습니다. 다시 시도해 주세요.',
+      });
     } finally {
       setLoading(false);
     }
@@ -52,18 +60,27 @@ export default function AdminVersesUpload() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">제목</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 하나님의 신실하심" required />
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 하나님의 신실하심" required />
+            <p className="mt-1 text-right text-xs text-gray-400">{title.length}/120</p>
           </div>
           
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">성경 구절</label>
-            <input type="text" value={scripture} onChange={(e) => setScripture(e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 예레미야애가 3:22-23" required />
+            <input type="text" value={scripture} onChange={(e) => setScripture(e.target.value)} maxLength={100} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="예: 예레미야애가 3:22-23" required />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">말씀 묵상</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={8} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none" placeholder="묵상 내용을 입력해 주세요." required />
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={8} maxLength={4000} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-y" placeholder="묵상 내용을 입력해 주세요." required />
+            <p className="mt-1 text-right text-xs text-gray-400">{message.length}/4000</p>
           </div>
+
+          {notice ? (
+            <AdminNotice
+              {...notice}
+              onDismiss={() => setNotice(null)}
+            />
+          ) : null}
 
           <button type="submit" disabled={loading} className="w-full bg-green-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition flex items-center justify-center gap-2">
             {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> 등록 중...</> : '주간 말씀 등록'}
