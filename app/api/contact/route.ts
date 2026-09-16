@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey) {
-    return NextResponse.json({ error: 'Email service is not configured.' }, { status: 500 });
+    return NextResponse.json({ error: '문의 메일 서비스가 설정되지 않았습니다.' }, { status: 500 });
   }
 
   const resend = new Resend(resendApiKey);
@@ -42,14 +42,14 @@ export async function POST(request: Request) {
   const lastName = readText(body.lastName, 80);
   const email = readText(body.email, 254);
   const message = readText(body.message, 5000);
-  const name = [firstName, lastName].filter(Boolean).join(' ');
+  const name = [lastName, firstName].filter(Boolean).join('');
 
   if (!firstName || !lastName || !email || !message) {
-    return NextResponse.json({ error: 'Please fill in all required fields.' }, { status: 400 });
+    return NextResponse.json({ error: '필수 항목을 모두 입력해 주세요.' }, { status: 400 });
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+    return NextResponse.json({ error: '올바른 이메일 주소를 입력해 주세요.' }, { status: 400 });
   }
 
   const toEmail = process.env.CONTACT_TO_EMAIL ?? 'mtedenkoreanchurch@gmail.com';
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
   if (error) {
     console.error('Resend contact email error:', error);
-    return NextResponse.json({ error: 'Failed to send message.' }, { status: 502 });
+    return NextResponse.json({ error: '문의를 전송하지 못했습니다. 잠시 후 다시 시도해 주세요.' }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true });

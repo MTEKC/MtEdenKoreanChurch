@@ -132,18 +132,29 @@ export default function CommentSection({ postId }: { postId: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [loadError, setLoadError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const [user] = useAuthState(auth); // Admin Check
 
   useEffect(() => {
     const q = query(collection(db, "comments"), where("postId", "==", postId), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setComments(snapshot.docs.map(doc => ({
-        id: doc.id,
-        author: doc.data().author || 'Anonymous',
-        text: doc.data().text || '',
-        createdAt: doc.data().createdAt,
-      })));
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setComments(snapshot.docs.map(doc => ({
+          id: doc.id,
+          author: doc.data().author || '익명',
+          text: doc.data().text || '',
+          createdAt: doc.data().createdAt,
+        })));
+        setLoadError(false);
+      },
+      (error) => {
+        console.error('댓글 불러오기 오류:', error);
+        setLoadError(true);
+      }
+    );
     return () => unsubscribe();
   }, [postId]);
 
@@ -151,17 +162,27 @@ export default function CommentSection({ postId }: { postId: string }) {
     e.preventDefault();
     if (!newComment.trim() || !authorName.trim()) return;
 
-    await addDoc(collection(db, "comments"), {
-      postId,
-      text: newComment,
-      author: authorName,
-      createdAt: serverTimestamp()
-    });
-    setNewComment('');
+    setSubmitting(true);
+    setStatusMessage('');
+    try {
+      await addDoc(collection(db, "comments"), {
+        postId,
+        text: newComment,
+        author: authorName,
+        createdAt: serverTimestamp()
+      });
+      setNewComment('');
+      setStatusMessage('나눔이 등록되었습니다.');
+    } catch (error) {
+      console.error('댓글 등록 오류:', error);
+      setStatusMessage('나눔을 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = async (commentId: string) => {
-    if (confirm("Delete this comment?")) {
+    if (confirm("이 나눔을 삭제하시겠습니까?")) {
       await deleteDoc(doc(db, "comments", commentId));
     }
   };
@@ -169,46 +190,55 @@ export default function CommentSection({ postId }: { postId: string }) {
   return (
     <div className="mt-8 border-t pt-6 bg-gray-50/50 -mx-6 -mb-6 p-6 rounded-b-2xl">
       <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
-        <MessageSquare className="w-5 h-5 text-blue-600" /> Community Thoughts
+        <MessageSquare className="w-5 h-5 text-blue-600" aria-hidden="true" /> 함께 나누기
       </h3>
 
       <form onSubmit={handleSubmit} className="mb-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
         <input 
           type="text" 
-          placeholder="Your Name (Required)" 
+          placeholder="이름 (필수)"
           value={authorName}
           onChange={(e) => setAuthorName(e.target.value)}
           className="w-full md:w-1/3 p-2 border rounded-lg text-sm mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
           required
         />
         <textarea 
-          placeholder="Share your thoughts or prayers..." 
+          placeholder="묵상이나 기도 제목을 나눠 주세요."
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           className="w-full p-2 border rounded-lg text-sm h-20 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
           required
         />
         <div className="mt-2 text-right">
-          <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-            Post Comment
+          <button type="submit" disabled={submitting} className="min-h-11 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70">
+            {submitting ? '등록하는 중...' : '나눔 등록'}
           </button>
         </div>
+        {statusMessage && <p role="status" className="mt-3 text-sm text-gray-700">{statusMessage}</p>}
       </form>
+
+      {loadError && (
+        <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          나눔을 불러오지 못했습니다. 잠시 후 페이지를 새로고침해 주세요.
+        </p>
+      )}
 
       <div className="space-y-3">
         {comments.map((comment) => (
           <div key={comment.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative group">
             <div className="flex justify-between items-start mb-1 pr-8">
               <span className="font-bold text-gray-800 text-sm">{comment.author}</span>
-              <span className="text-xs text-gray-400">
-                {comment.createdAt?.seconds ? new Date(comment.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
+              <span className="text-xs text-gray-500">
+                {comment.createdAt?.seconds
+                  ? new Intl.DateTimeFormat('ko-KR').format(new Date(comment.createdAt.seconds * 1000))
+                  : '방금 등록됨'}
               </span>
             </div>
             <p className="text-gray-600 text-sm whitespace-pre-wrap">{comment.text}</p>
             
             {user && (
-              <button onClick={() => handleDelete(comment.id)} className="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition-colors bg-white rounded-full p-1" title="Delete Comment">
-                <Trash2 className="w-4 h-4" />
+              <button onClick={() => handleDelete(comment.id)} className="absolute top-2 right-2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600" title="나눔 삭제" aria-label={`${comment.author}님의 나눔 삭제`}>
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
           </div>

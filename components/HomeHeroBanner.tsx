@@ -4,12 +4,9 @@ import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
-import church1Image from '@/app/image/church1.jpg';
-import church3Image from '@/app/image/church3.jpg';
-import churchegg from '@/app/image/church_egg.jpg';
-import heroEasterImage from '@/app/image/hero_easter_altar.png';
 import heroOrganImage from '@/app/image/hero_empty_sanctuary_organ.png';
 import heroWindowsImage from '@/app/image/hero_empty_sanctuary_windows.png';
+import heroAltarImage from '@/app/image/hero_easter_altar.png';
 
 interface HeroSlide {
   image: StaticImageData;
@@ -30,25 +27,9 @@ const slides: HeroSlide[] = [
     subtext: '매주 일요일 오전 11시 30분, 예배의 자리로 초대합니다.',
   },
   {
-    image: church3Image,
+    image: heroAltarImage,
     heading: '지역과 이웃을 섬기는 교회',
     subtext: '우리의 일상과 지역사회에 따뜻한 사랑을 나눕니다.',
-  },
-  {
-    image: church1Image,
-    heading: '말씀으로 자라는 공동체',
-    subtext: '바르게 알고, 바르게 믿고, 삶으로 살아가기를 소망합니다.',
-  },
-  {
-    image: churchegg,
-    heading: '부활의 기쁨을 함께',
-    subtext: '예수 그리스도의 생명과 소망을 함께 나눕니다.',
-    position: 'center 42%',
-  },
-  {
-    image: heroEasterImage,
-    heading: '예배의 자리로 초대합니다',
-    subtext: '처음 오시는 분도 편안하게 함께하실 수 있습니다.',
   },
 ];
 
@@ -58,6 +39,8 @@ export default function HomeHeroBanner() {
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocusWithin, setIsFocusWithin] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const next = useCallback(() => {
     setCurrent((previous) => (previous + 1) % slides.length);
@@ -68,13 +51,24 @@ export default function HomeHeroBanner() {
   }, []);
 
   useEffect(() => {
-    if (isPaused || isHovered) {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updatePreference();
+    mediaQuery.addEventListener('change', updatePreference);
+    return () => mediaQuery.removeEventListener('change', updatePreference);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused || isHovered || isFocusWithin || prefersReducedMotion) {
       return;
     }
 
     const timer = window.setInterval(next, autoSlideInterval);
     return () => window.clearInterval(timer);
-  }, [isHovered, isPaused, next]);
+  }, [isFocusWithin, isHovered, isPaused, next, prefersReducedMotion]);
+
+  const autoplayStopped = isPaused || prefersReducedMotion;
 
   return (
     <section
@@ -83,6 +77,12 @@ export default function HomeHeroBanner() {
       aria-label="교회 주요 안내"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocusCapture={() => setIsFocusWithin(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setIsFocusWithin(false);
+        }
+      }}
     >
       {slides.map((slide, index) => (
         <div
@@ -105,7 +105,7 @@ export default function HomeHeroBanner() {
         </div>
       ))}
 
-      <div className="relative z-10 mx-auto max-w-4xl px-12" aria-live="polite">
+      <div className="relative z-10 mx-auto max-w-4xl px-12" aria-live={autoplayStopped ? 'polite' : 'off'}>
         <h1 className="text-3xl font-bold leading-tight sm:text-5xl lg:text-6xl">
           {slides[current].heading}
         </h1>
@@ -149,10 +149,11 @@ export default function HomeHeroBanner() {
         <button
           type="button"
           onClick={() => setIsPaused((paused) => !paused)}
-          aria-label={isPaused ? '배너 자동 넘김 재생' : '배너 자동 넘김 일시정지'}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white hover:bg-black/70"
+          disabled={prefersReducedMotion}
+          aria-label={prefersReducedMotion ? '기기 설정에 따라 배너 자동 넘김이 꺼져 있습니다' : isPaused ? '배너 자동 넘김 재생' : '배너 자동 넘김 일시정지'}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isPaused ? (
+          {autoplayStopped ? (
             <Play className="h-4 w-4" aria-hidden="true" />
           ) : (
             <Pause className="h-4 w-4" aria-hidden="true" />
@@ -166,10 +167,14 @@ export default function HomeHeroBanner() {
               onClick={() => setCurrent(index)}
               aria-label={`${index + 1}번 배너 보기`}
               aria-current={index === current ? 'true' : undefined}
-              className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                index === current ? 'bg-white' : 'bg-white/45 hover:bg-white/75'
-              }`}
-            />
+              className="group inline-flex h-11 w-11 items-center justify-center rounded-full"
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  index === current ? 'bg-white' : 'bg-white/45 group-hover:bg-white/75'
+                }`}
+              />
+            </button>
           ))}
         </div>
       </div>

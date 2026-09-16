@@ -20,6 +20,7 @@ import {
   type Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import ContentLoadError from '@/components/ContentLoadError';
 
 interface Announcement {
   id: string;
@@ -45,6 +46,12 @@ interface WeeklyWord {
   scripture?: string;
   message?: string;
 }
+
+const initialErrors = {
+  announcements: false,
+  sermon: false,
+  weeklyWord: false,
+};
 
 const categoryLabels: Record<string, string> = {
   Event: '행사',
@@ -107,6 +114,8 @@ export default function HomeLatestContent() {
   const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [sermon, setSermon] = useState<Sermon | null | undefined>(undefined);
   const [weeklyWord, setWeeklyWord] = useState<WeeklyWord | null | undefined>(undefined);
+  const [loadErrors, setLoadErrors] = useState(initialErrors);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const announcementsQuery = query(
@@ -134,8 +143,13 @@ export default function HomeLatestContent() {
             ...document.data(),
           })) as Announcement[]
         );
+        setLoadErrors((errors) => ({ ...errors, announcements: false }));
       },
-      () => setAnnouncements([])
+      (error) => {
+        console.error('홈 소식 불러오기 오류:', error);
+        setAnnouncements([]);
+        setLoadErrors((errors) => ({ ...errors, announcements: true }));
+      }
     );
 
     const unsubscribeSermon = onSnapshot(
@@ -143,8 +157,13 @@ export default function HomeLatestContent() {
       (snapshot) => {
         const document = snapshot.docs[0];
         setSermon(document ? ({ id: document.id, ...document.data() } as Sermon) : null);
+        setLoadErrors((errors) => ({ ...errors, sermon: false }));
       },
-      () => setSermon(null)
+      (error) => {
+        console.error('홈 설교 불러오기 오류:', error);
+        setSermon(null);
+        setLoadErrors((errors) => ({ ...errors, sermon: true }));
+      }
     );
 
     const unsubscribeWeeklyWord = onSnapshot(
@@ -152,8 +171,13 @@ export default function HomeLatestContent() {
       (snapshot) => {
         const document = snapshot.docs[0];
         setWeeklyWord(document ? ({ id: document.id, ...document.data() } as WeeklyWord) : null);
+        setLoadErrors((errors) => ({ ...errors, weeklyWord: false }));
       },
-      () => setWeeklyWord(null)
+      (error) => {
+        console.error('홈 주간 말씀 불러오기 오류:', error);
+        setWeeklyWord(null);
+        setLoadErrors((errors) => ({ ...errors, weeklyWord: true }));
+      }
     );
 
     return () => {
@@ -161,7 +185,15 @@ export default function HomeLatestContent() {
       unsubscribeSermon();
       unsubscribeWeeklyWord();
     };
-  }, []);
+  }, [retryKey]);
+
+  const retryContent = () => {
+    setAnnouncements(null);
+    setSermon(undefined);
+    setWeeklyWord(undefined);
+    setLoadErrors(initialErrors);
+    setRetryKey((key) => key + 1);
+  };
 
   const youtubeId = sermon ? getYoutubeId(sermon.youtubeId) : '';
 
@@ -186,6 +218,8 @@ export default function HomeLatestContent() {
 
             {announcements === null ? (
               <LoadingRows />
+            ) : loadErrors.announcements ? (
+              <ContentLoadError compact onRetry={retryContent} message="교회 소식을 불러오지 못했습니다." />
             ) : announcements.length === 0 ? (
               <div className="border-y border-slate-200 py-12 text-center text-slate-500">
                 등록된 새 소식이 없습니다.
@@ -237,7 +271,11 @@ export default function HomeLatestContent() {
             </div>
 
             {sermon === undefined ? (
-              <div className="aspect-video animate-pulse rounded-lg bg-slate-200" />
+              <div className="aspect-video animate-pulse rounded-lg bg-slate-200" role="status">
+                <span className="sr-only">최근 설교를 불러오는 중입니다.</span>
+              </div>
+            ) : loadErrors.sermon ? (
+              <ContentLoadError compact onRetry={retryContent} message="최근 설교를 불러오지 못했습니다." />
             ) : sermon === null ? (
               <div className="flex aspect-video items-center justify-center border-y border-slate-200 text-slate-500">
                 등록된 설교가 없습니다.
@@ -302,7 +340,11 @@ export default function HomeLatestContent() {
           </div>
 
           {weeklyWord === undefined ? (
-            <div className="h-16 animate-pulse rounded bg-blue-100" />
+            <div className="h-16 animate-pulse rounded bg-blue-100" role="status">
+              <span className="sr-only">이번 주 말씀을 불러오는 중입니다.</span>
+            </div>
+          ) : loadErrors.weeklyWord ? (
+            <ContentLoadError compact onRetry={retryContent} message="이번 주 말씀을 불러오지 못했습니다." />
           ) : weeklyWord === null ? (
             <p className="text-slate-600">새로운 말씀이 곧 등록됩니다.</p>
           ) : (

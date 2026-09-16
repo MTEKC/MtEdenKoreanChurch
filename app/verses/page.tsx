@@ -71,6 +71,7 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc, type Timestamp 
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { BookOpen, Calendar, Trash2 } from 'lucide-react';
 import CommentSection from '@/components/CommentSection'; // Import our comment component
+import ContentLoadError from '@/components/ContentLoadError';
 
 interface VerseData {
   id: string;
@@ -83,23 +84,40 @@ interface VerseData {
 export default function VersesPage() {
   const [verses, setVerses] = useState<VerseData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [user] = useAuthState(auth); // Admin Check
 
   useEffect(() => {
     const q = query(collection(db, 'verses'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setVerses(snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      })) as VerseData[]);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setVerses(snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })) as VerseData[]);
+        setLoadError(false);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('주간 말씀 불러오기 오류:', error);
+        setLoadError(true);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [retryKey]);
+
+  const retryLoading = () => {
+    setLoading(true);
+    setLoadError(false);
+    setRetryKey((key) => key + 1);
+  };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this Weekly Word?")) {
+    if (confirm("이 주간 말씀을 삭제하시겠습니까?\n삭제한 내용은 복구할 수 없습니다.")) {
       await deleteDoc(doc(db, 'verses', id));
     }
   };
@@ -109,20 +127,23 @@ export default function VersesPage() {
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-12">
         <header className="mb-10 text-center">
-          <div className="inline-block bg-green-100 p-3 rounded-full mb-4">
-            <BookOpen className="w-8 h-8 text-green-600" />
+          <div className="inline-block bg-blue-100 p-3 rounded-full mb-4">
+            <BookOpen className="w-8 h-8 text-blue-700" aria-hidden="true" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900">Weekly Word</h1>
-          <p className="text-gray-600 mt-2">Reflections and devotionals from our pastoral team</p>
+          <h1 className="text-4xl font-bold text-gray-900">주간 말씀</h1>
+          <p className="text-gray-600 mt-2">목회자와 함께 묵상하는 이번 주의 말씀입니다.</p>
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <div className="flex justify-center py-20" role="status">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700" aria-hidden="true"></div>
+            <span className="sr-only">주간 말씀을 불러오는 중입니다.</span>
           </div>
+        ) : loadError ? (
+          <ContentLoadError onRetry={retryLoading} message="주간 말씀을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요." />
         ) : verses.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-200">
-            <p className="text-gray-500">No devotionals posted yet.</p>
+            <p className="text-gray-500">등록된 주간 말씀이 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-12">
@@ -133,22 +154,25 @@ export default function VersesPage() {
                 {user && (
                   <button 
                     onClick={() => handleDelete(verse.id)}
-                    className="absolute top-6 right-6 text-gray-300 hover:text-red-500 transition-colors"
-                    title="Delete Post"
+                    className="absolute top-4 right-4 inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 sm:top-6 sm:right-6"
+                    title="주간 말씀 삭제"
+                    aria-label={`${verse.title} 삭제`}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-5 h-5" aria-hidden="true" />
                   </button>
                 )}
 
                 <div className="p-8">
                   <div className="mb-6">
-                    <span className="inline-block bg-green-50 text-green-700 font-bold px-4 py-2 rounded-lg border border-green-100 mb-4">
+                    <span className="mb-4 inline-block rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 font-bold text-blue-700">
                       {verse.scripture}
                     </span>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">{verse.title}</h2>
-                    <span className="text-sm text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-4 h-4" /> 
-                      {verse.createdAt?.seconds ? new Date(verse.createdAt.seconds * 1000).toLocaleDateString() : 'Just posted'}
+                    <span className="flex items-center gap-1 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" aria-hidden="true" />
+                      {verse.createdAt?.seconds
+                        ? new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(verse.createdAt.seconds * 1000))
+                        : '방금 게시됨'}
                     </span>
                   </div>
 

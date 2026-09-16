@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   addDoc,
@@ -59,7 +59,20 @@ export default function AdminVersesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const openEditDialog = useCallback((item: VerseItem) => {
+    setManagementNotice(null);
+    setEditNotice(null);
+    setEditingItem(item);
+    setEditForm({
+      title: item.title || '',
+      scripture: item.scripture || '',
+      message: item.message || '',
+    });
+  }, []);
+
   useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    let editLinkHandled = false;
     const versesQuery = query(
       collection(db, 'verses'),
       orderBy('createdAt', 'desc')
@@ -68,10 +81,25 @@ export default function AdminVersesPage() {
     return onSnapshot(
       versesQuery,
       (snapshot) => {
-        setItems(snapshot.docs.map((verseDoc) => ({
+        const loadedItems = snapshot.docs.map((verseDoc) => ({
           id: verseDoc.id,
           ...verseDoc.data(),
-        })) as VerseItem[]);
+        })) as VerseItem[];
+        setItems(loadedItems);
+
+        if (editId && !editLinkHandled) {
+          const selectedItem = loadedItems.find((item) => item.id === editId);
+          if (selectedItem) {
+            editLinkHandled = true;
+            openEditDialog(selectedItem);
+          } else if (!snapshot.metadata.fromCache) {
+            editLinkHandled = true;
+            setManagementNotice({
+              type: 'error',
+              message: '수정할 게시글을 찾을 수 없습니다. 삭제된 게시글인지 확인해 주세요.',
+            });
+          }
+        }
         setItemsLoading(false);
         setItemsError(false);
       },
@@ -81,7 +109,7 @@ export default function AdminVersesPage() {
         setItemsError(true);
       }
     );
-  }, []);
+  }, [openEditDialog]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -109,17 +137,6 @@ export default function AdminVersesPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const openEditDialog = (item: VerseItem) => {
-    setManagementNotice(null);
-    setEditNotice(null);
-    setEditingItem(item);
-    setEditForm({
-      title: item.title || '',
-      scripture: item.scripture || '',
-      message: item.message || '',
-    });
   };
 
   const closeEditDialog = () => {

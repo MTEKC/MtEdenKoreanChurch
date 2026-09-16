@@ -90,6 +90,7 @@ import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc, type Timestamp } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { Megaphone, Calendar, Pin, Trash2 } from 'lucide-react';
+import ContentLoadError from '@/components/ContentLoadError';
 
 // Define what our announcement data looks like
 interface Announcement {
@@ -117,9 +118,18 @@ const categoryLabels: Record<string, string> = {
   'General News': '교회 소식',
 };
 
+function formatDate(date: string) {
+  const parsedDate = new Date(`${date}T00:00:00`);
+  return Number.isNaN(parsedDate.getTime())
+    ? date
+    : new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).format(parsedDate);
+}
+
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   
   // Checks if you (the Admin) are currently logged in
@@ -133,28 +143,43 @@ export default function AnnouncementsPage() {
     );
 
     // 2. Listen for real-time updates
-    const unsubscribe = onSnapshot(announcementsQuery, (snapshot) => {
-      const fetched = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Announcement[];
+    const unsubscribe = onSnapshot(
+      announcementsQuery,
+      (snapshot) => {
+        const fetched = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Announcement[];
 
-      // 3. Sort them so "Pinned" announcements always stay at the top
-      const sortedAnnouncements = fetched.sort((a, b) => {
-        if (a.isPinned === b.isPinned) return 0;
-        return a.isPinned ? -1 : 1;
-      });
+        // Keep important announcements at the top without mutating fetched data.
+        const sortedAnnouncements = [...fetched].sort((a, b) => {
+          if (a.isPinned === b.isPinned) return 0;
+          return a.isPinned ? -1 : 1;
+        });
 
-      setAnnouncements(sortedAnnouncements);
-      setLoading(false);
-    });
+        setAnnouncements(sortedAnnouncements);
+        setLoadError(false);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('소식·행사 불러오기 오류:', error);
+        setLoadError(true);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [retryKey]);
+
+  const retryLoading = () => {
+    setLoading(true);
+    setLoadError(false);
+    setRetryKey((key) => key + 1);
+  };
 
   // Admin Delete Function
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this announcement?")) {
+    if (confirm("이 소식·행사를 삭제하시겠습니까?\n삭제한 내용은 복구할 수 없습니다.")) {
       await deleteDoc(doc(db, 'announcements', id));
     }
   };
@@ -170,7 +195,7 @@ export default function AnnouncementsPage() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <header className="mb-10 flex items-center gap-4">
           <div className="p-3 bg-orange-100 rounded-full">
-            <Megaphone className="w-8 h-8 text-orange-600" />
+            <Megaphone className="w-8 h-8 text-orange-600" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">소식·행사</h1>
@@ -179,13 +204,14 @@ export default function AnnouncementsPage() {
         </header>
 
         {/* Category Tabs */}
-        {!loading && (
+        {!loading && !loadError && (
           <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
             {announcementCategories.map(({ value, label }) => (
                <button
                  key={value}
                  onClick={() => setSelectedCategory(value)}
-                 className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                 aria-pressed={selectedCategory === value}
+                 className={`min-h-11 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
                    selectedCategory === value
                      ? 'bg-orange-600 text-white shadow-md'
                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
@@ -198,12 +224,15 @@ export default function AnnouncementsPage() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+          <div className="flex justify-center py-20" role="status">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600" aria-hidden="true"></div>
+            <span className="sr-only">소식과 행사를 불러오는 중입니다.</span>
           </div>
+        ) : loadError ? (
+          <ContentLoadError onRetry={retryLoading} message="소식과 행사를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요." />
         ) : filteredAnnouncements.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-200">
-            <p className="text-gray-500">No announcements found in this category.</p>
+            <p className="text-gray-500">이 분류에 등록된 소식이 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -218,10 +247,11 @@ export default function AnnouncementsPage() {
                 {user && (
                   <button 
                     onClick={() => handleDelete(item.id)}
-                    className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors p-2"
-                    title="Delete Announcement"
+                    className="absolute top-4 right-4 inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="소식·행사 삭제"
+                    aria-label={`${item.title} 삭제`}
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-5 h-5" aria-hidden="true" />
                   </button>
                 )}
 
@@ -237,13 +267,13 @@ export default function AnnouncementsPage() {
                     </span>
                     {item.isPinned && (
                       <span className="flex items-center gap-1 text-xs font-semibold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">
-                        <Pin className="w-3 h-3" /> Pinned
+                        <Pin className="w-3 h-3" aria-hidden="true" /> 중요
                       </span>
                     )}
                   </div>
                   {item.date && (
-                    <span className="text-sm text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-4 h-4" /> {item.date}
+                    <span className="text-sm text-gray-500 flex items-center gap-1">
+                      <Calendar className="w-4 h-4" aria-hidden="true" /> {formatDate(item.date)}
                     </span>
                   )}
                 </div>

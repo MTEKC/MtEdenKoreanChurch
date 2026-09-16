@@ -83,7 +83,7 @@ export default function ContactPage() {
                         <div className="space-y-6">
                             <div className="flex items-start gap-4">
                                 <div className="bg-white p-3 rounded-full shadow-sm">
-                                    <MapPin className="w-6 h-6 text-blue-600" />
+                                    <MapPin className="w-6 h-6 text-blue-600" aria-hidden="true" />
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-gray-900">오시는 길</h3>
@@ -95,23 +95,29 @@ export default function ContactPage() {
 
                             <div className="flex items-start gap-4">
                                 <div className="bg-white p-3 rounded-full shadow-sm">
-                                    <Phone className="w-6 h-6 text-blue-600" />
+                                    <Phone className="w-6 h-6 text-blue-600" aria-hidden="true" />
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-gray-900">전화 문의</h3>
-                                    <p className="text-gray-600">Rev. Han    027 514 1121</p>
-                                    <p className="text-gray-600">Rev. Shin   021 126 8180</p>
-                                    <p className="text-sm text-gray-400">월요일-금요일, 오전 9시-오후 5시</p>
+                                    <a href="tel:+64275141121" className="block min-h-11 py-2 text-blue-700 underline-offset-4 hover:underline">
+                                        Rev. Han · 027 514 1121
+                                    </a>
+                                    <a href="tel:+64211268180" className="block min-h-11 py-2 text-blue-700 underline-offset-4 hover:underline">
+                                        Rev. Shin · 021 126 8180
+                                    </a>
+                                    <p className="text-sm text-gray-500">월요일–금요일, 오전 9시–오후 5시</p>
                                 </div>
                             </div>
 
                             <div className="flex items-start gap-4">
                                 <div className="bg-white p-3 rounded-full shadow-sm">
-                                    <Mail className="w-6 h-6 text-blue-600" />
+                                    <Mail className="w-6 h-6 text-blue-600" aria-hidden="true" />
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-gray-900">이메일</h3>
-                                    <p className="text-gray-600">mtedenkoreanchurch@gmail.com</p>
+                                    <a href="mailto:mtedenkoreanchurch@gmail.com" className="block min-h-11 break-all py-2 text-blue-700 underline-offset-4 hover:underline">
+                                        mtedenkoreanchurch@gmail.com
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -127,8 +133,9 @@ export default function ContactPage() {
                                 loading="lazy"
                             ></iframe> */}
                             <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d6382.656091442055!2d174.75900667741848!3d-36.882499781393975!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6d0d4632b82dd291%3A0xf748835c68dd93a9!2sMt%20Eden%20Village%20Centre!5e0!3m2!1sko!2snz!4v1770990091280!5m2!1sko!2snz"
-                                width="600"
-                                height="450"
+                                title="마운트 이든 한인교회 위치"
+                                width="100%"
+                                height="100%"
                                 style={{ border: 0 }}
                                 allowFullScreen
                                 loading="lazy"
@@ -151,19 +158,7 @@ export default function ContactPage() {
                                 autoComplete="off"
                             />
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">이름</label>
-                                    <input
-                                        id="firstName"
-                                        type="text"
-                                        value={form.firstName}
-                                        onChange={updateField('firstName')}
-                                        required
-                                        className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                        placeholder="홍길동"
-                                    />
-                                </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">성</label>
                                     <input
@@ -172,8 +167,22 @@ export default function ContactPage() {
                                         value={form.lastName}
                                         onChange={updateField('lastName')}
                                         required
+                                        autoComplete="family-name"
                                         className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                         placeholder="김"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                                    <input
+                                        id="firstName"
+                                        type="text"
+                                        value={form.firstName}
+                                        onChange={updateField('firstName')}
+                                        required
+                                        autoComplete="given-name"
+                                        className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                                        placeholder="길동"
                                     />
                                 </div>
                             </div>
@@ -186,6 +195,7 @@ export default function ContactPage() {
                                     value={form.email}
                                     onChange={updateField('email')}
                                     required
+                                    autoComplete="email"
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                                     placeholder="john@example.com"
                                 />
@@ -200,13 +210,14 @@ export default function ContactPage() {
                                     onChange={updateField('message')}
                                     required
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                                placeholder="문의 내용을 적어 주세요."
+                                    placeholder="문의 내용을 적어 주세요."
                                 ></textarea>
                             </div>
 
                             {status && (
                                 <p
                                     role="status"
+                                    aria-live="polite"
                                     className={`text-sm ${status.type === 'success' ? 'text-green-700' : 'text-red-600'}`}
                                 >
                                     {status.message}
@@ -216,14 +227,17 @@ export default function ContactPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 transition flex items-center justify-center gap-2"
+                                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                             >
                                 {loading ? '보내는 중...' : (
                                     <>
-                                        문의 보내기 <Send className="w-4 h-4" />
+                                        문의 보내기 <Send className="w-4 h-4" aria-hidden="true" />
                                     </>
                                 )}
                             </button>
+                            <p className="text-xs leading-5 text-gray-500">
+                                입력하신 정보는 문의 답변을 위해서만 사용됩니다.
+                            </p>
                         </form>
                     </div>
 

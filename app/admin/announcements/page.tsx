@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   addDoc,
@@ -78,7 +78,22 @@ export default function AdminAnnouncementsPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const openEditDialog = useCallback((item: AnnouncementItem) => {
+    setManagementNotice(null);
+    setEditNotice(null);
+    setEditingItem(item);
+    setEditForm({
+      title: item.title || '',
+      date: item.date || '',
+      category: item.category || 'General News',
+      content: item.content || '',
+      isPinned: Boolean(item.isPinned),
+    });
+  }, []);
+
   useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('edit');
+    let editLinkHandled = false;
     const announcementsQuery = query(
       collection(db, 'announcements'),
       orderBy('createdAt', 'desc')
@@ -87,10 +102,25 @@ export default function AdminAnnouncementsPage() {
     return onSnapshot(
       announcementsQuery,
       (snapshot) => {
-        setItems(snapshot.docs.map((announcementDoc) => ({
+        const loadedItems = snapshot.docs.map((announcementDoc) => ({
           id: announcementDoc.id,
           ...announcementDoc.data(),
-        })) as AnnouncementItem[]);
+        })) as AnnouncementItem[];
+        setItems(loadedItems);
+
+        if (editId && !editLinkHandled) {
+          const selectedItem = loadedItems.find((item) => item.id === editId);
+          if (selectedItem) {
+            editLinkHandled = true;
+            openEditDialog(selectedItem);
+          } else if (!snapshot.metadata.fromCache) {
+            editLinkHandled = true;
+            setManagementNotice({
+              type: 'error',
+              message: '수정할 게시글을 찾을 수 없습니다. 삭제된 게시글인지 확인해 주세요.',
+            });
+          }
+        }
         setItemsLoading(false);
         setItemsError(false);
       },
@@ -100,7 +130,7 @@ export default function AdminAnnouncementsPage() {
         setItemsError(true);
       }
     );
-  }, []);
+  }, [openEditDialog]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -130,19 +160,6 @@ export default function AdminAnnouncementsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const openEditDialog = (item: AnnouncementItem) => {
-    setManagementNotice(null);
-    setEditNotice(null);
-    setEditingItem(item);
-    setEditForm({
-      title: item.title || '',
-      date: item.date || '',
-      category: item.category || 'General News',
-      content: item.content || '',
-      isPinned: Boolean(item.isPinned),
-    });
   };
 
   const closeEditDialog = () => {

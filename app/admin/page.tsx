@@ -8,7 +8,7 @@ import { signOut } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Trash2, ExternalLink, FileText } from 'lucide-react';
+import { LayoutDashboard, Image as ImageIcon, Megaphone, Video, LogOut, BookOpen, Pencil, Trash2, ExternalLink, FileText } from 'lucide-react';
 import { GalleryItem, getGalleryCloudinaryPublicIds, getGalleryCoverImage, getGalleryImageCount } from '@/lib/gallery';
 
 interface AdminListItem {
@@ -252,7 +252,16 @@ export default function AdminDashboard() {
               {announcements.map(item => (
                 <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
                   <span className="text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
-                  <button onClick={() => deleteTextDoc('announcements', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="소식·행사 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={{ pathname: '/admin/announcements', query: { edit: item.id } }}
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-slate-600 hover:bg-white hover:text-blue-700"
+                      aria-label={`${item.title} 수정`}
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" /> 수정
+                    </Link>
+                    <button onClick={() => deleteTextDoc('announcements', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="소식·행사 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </li>
               ))}
               {announcements.length === 0 && <p className="text-sm text-gray-400">등록된 소식·행사가 없습니다.</p>}
@@ -266,7 +275,16 @@ export default function AdminDashboard() {
               {verses.map(item => (
                 <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
                   <span className="text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
-                  <button onClick={() => deleteTextDoc('verses', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="주간 말씀 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={{ pathname: '/admin/verses', query: { edit: item.id } }}
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-slate-600 hover:bg-white hover:text-blue-700"
+                      aria-label={`${item.title} 수정`}
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" /> 수정
+                    </Link>
+                    <button onClick={() => deleteTextDoc('verses', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="주간 말씀 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </li>
               ))}
               {verses.length === 0 && <p className="text-sm text-gray-400">등록된 주간 말씀이 없습니다.</p>}
@@ -280,7 +298,16 @@ export default function AdminDashboard() {
               {sermons.map(item => (
                 <li key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
                   <span className="text-sm font-medium text-gray-700 truncate pr-4">{item.title}</span>
-                  <button onClick={() => deleteTextDoc('sermons', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="설교 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={{ pathname: '/admin/sermons', query: { edit: item.id } }}
+                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-medium text-slate-600 hover:bg-white hover:text-blue-700"
+                      aria-label={`${item.title} 수정`}
+                    >
+                      <Pencil className="h-4 w-4" aria-hidden="true" /> 수정
+                    </Link>
+                    <button onClick={() => deleteTextDoc('sermons', item.id)} className="text-gray-400 hover:text-red-500 p-1" title="설교 삭제" aria-label={`${item.title} 삭제`}><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </li>
               ))}
               {sermons.length === 0 && <p className="text-sm text-gray-400">등록된 설교가 없습니다.</p>}

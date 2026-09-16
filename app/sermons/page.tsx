@@ -98,6 +98,7 @@ import { db, auth } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { User, Calendar, Trash2 } from 'lucide-react';
+import ContentLoadError from '@/components/ContentLoadError';
 
 interface Sermon {
   id: string;
@@ -109,24 +110,48 @@ interface Sermon {
   youtubeId: string;
 }
 
+function formatDate(date: string) {
+  const parsedDate = new Date(`${date}T00:00:00`);
+  return Number.isNaN(parsedDate.getTime())
+    ? date
+    : new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).format(parsedDate);
+}
+
 export default function SermonsPage() {
   const [sermons, setSermons] = useState<Sermon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [user] = useAuthState(auth); // Checks if Admin is logged in
 
   useEffect(() => {
     const q = query(collection(db, 'sermons'), orderBy('createdAt', 'desc'));
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setSermons(snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Sermon[]);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setSermons(snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Sermon[]);
+        setLoadError(false);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('설교 불러오기 오류:', error);
+        setLoadError(true);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [retryKey]);
+
+  const retryLoading = () => {
+    setLoading(true);
+    setLoadError(false);
+    setRetryKey((key) => key + 1);
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm("이 설교를 삭제하시겠습니까?\n삭제한 설교는 복구할 수 없습니다.")) {
@@ -144,9 +169,12 @@ export default function SermonsPage() {
         </header>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <div className="flex justify-center py-20" role="status">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700" aria-hidden="true"></div>
+            <span className="sr-only">설교를 불러오는 중입니다.</span>
           </div>
+        ) : loadError ? (
+          <ContentLoadError onRetry={retryLoading} message="설교를 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요." />
         ) : sermons.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-200">
             <p className="text-gray-500">등록된 설교가 없습니다.</p>
@@ -160,10 +188,11 @@ export default function SermonsPage() {
                 {user && (
                   <button 
                     onClick={() => handleDelete(sermon.id)}
-                    className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-red-600 text-white p-2 rounded-full transition-colors"
-                    title="Delete Sermon"
+                    className="absolute top-2 right-2 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-red-700"
+                    title="설교 삭제"
+                    aria-label={`${sermon.title} 삭제`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}
 
@@ -183,15 +212,15 @@ export default function SermonsPage() {
 
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
                     <div className="flex items-center gap-1">
-                      <User className="w-4 h-4" /> {sermon.preacher}
+                      <User className="w-4 h-4" aria-hidden="true" /> {sermon.preacher}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" /> {sermon.date}
+                      <Calendar className="w-4 h-4" aria-hidden="true" /> {formatDate(sermon.date)}
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <span className="inline-block bg-purple-50 text-purple-700 text-xs font-semibold px-2 py-1 rounded border border-purple-100">
+                    <span className="inline-block rounded border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
                       {sermon.scripture}
                     </span>
                   </div>
